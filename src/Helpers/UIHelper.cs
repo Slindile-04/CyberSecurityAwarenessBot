@@ -20,37 +20,34 @@ namespace CyberSecurityAwarenessBot.Helpers
         /// <summary>
         /// TypingSpeed in milliseconds between character display.
         /// Adjustable to make typing appear faster or slower.
-        /// 20-40ms is ideal for readable yet engaging animation.
-        /// </summary>
-        private const int TypingSpeed = 30; // milliseconds per character
-
-        /// <summary>
-        /// DisplayTypingIndicator() - Shows "Bot is typing..." message with animation
+    /// 10-15ms provides smooth, fast animation while remaining readable.
+    /// </summary>
+    private const int TypingSpeed = 12; // milliseconds per character (faster, smoother animation)
         /// Creates a brief pause with animated dots to indicate the bot is processing
         /// 
         /// Workflow:
-        /// 1. Display initial "Bot is typing" message
+        /// 1. Display "Bot is typing" indicator on its own line
         /// 2. Animate dots for visual feedback
-        /// 3. Clear the indicator after approximately 1 second
-        /// 4. User sees smooth transition to actual response
+        /// 3. Clear the entire indicator line after approximately 1 second
+        /// 4. Response appears on a fresh line without any overlap
         /// </summary>
         public static void DisplayTypingIndicator()
         {
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.Write("🤖 Bot is typing");
+            Console.ResetColor();
             
-            // Animate dots for visual feedback
+            // Animate dots for visual feedback (~1 second total)
             for (int i = 0; i < 3; i++)
             {
-                System.Threading.Thread.Sleep(333); // ~1 second total for 3 dots
+                System.Threading.Thread.Sleep(333);
                 Console.Write(".");
             }
             
-            // Clear the typing indicator line
+            // Clear the entire typing indicator line and move to next line
             Console.Write("\r");
-            Console.Write(new string(' ', 30)); // Clear the line
-            Console.Write("\r");
-            Console.ResetColor();
+            Console.Write(new string(' ', 40)); // Clear the line completely
+            Console.Write("\r\n"); // Move to next line for response
         }
 
         /// <summary>
