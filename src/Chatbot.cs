@@ -176,21 +176,29 @@ namespace CyberSecurityAwarenessBot.Core
 
         /// <summary>
         /// RespondToGreeting() - Responds conversationally to greetings like "How are you?"
+        /// Uses typing animation for a natural, engaging conversation feel.
         /// </summary>
         private void RespondToGreeting()
         {
-            Console.WriteLine($"\n✨ I'm functioning perfectly, {_userName}! Thank you for asking.");
-            Console.WriteLine("I'm here to help you learn about cybersecurity and stay safe online.");
+            Console.WriteLine();
+            UIHelper.DisplayTypingIndicator();
+            UIHelper.DisplayWithTypingEffect($"✨ I'm functioning perfectly, {_userName}! Thank you for asking.");
+            UIHelper.DisplayWithTypingEffect("I'm here to help you learn about cybersecurity and stay safe online.");
+            UIHelper.AutoScroll();
         }
 
         /// <summary>
         /// RespondToPurpose() - Explains the chatbot's purpose when asked.
+        /// Uses typing animation for a natural response.
         /// </summary>
         private void RespondToPurpose()
         {
-            Console.WriteLine($"\n🎯 My purpose, {_userName}, is to educate you about cybersecurity best practices.");
-            Console.WriteLine("I can teach you about phishing, passwords, two-factor authentication, data privacy, and secure browsing.");
-            Console.WriteLine("Together, we'll help protect South African citizens online!");
+            Console.WriteLine();
+            UIHelper.DisplayTypingIndicator();
+            UIHelper.DisplayWithTypingEffect($"🎯 My purpose, {_userName}, is to educate you about cybersecurity best practices.");
+            UIHelper.DisplayWithTypingEffect("I can teach you about phishing, passwords, two-factor authentication, data privacy, and secure browsing.");
+            UIHelper.DisplayWithTypingEffect("Together, we'll help protect South African citizens online!");
+            UIHelper.AutoScroll();
         }
 
         /// <summary>
@@ -244,118 +252,168 @@ namespace CyberSecurityAwarenessBot.Core
 
         /// <summary>
         /// ProvidePhishingEducation() - Educates about phishing attacks with personalized greeting.
+        /// Uses typing animation to display educational content in an engaging way.
         /// </summary>
         private void ProvidePhishingEducation()
         {
-            Console.WriteLine($"\n┌─ PHISHING ATTACKS EDUCATION FOR {_userName.ToUpper()} ─┐");
-            Console.WriteLine("│ Phishing is a social engineering attack where attackers");
-            Console.WriteLine("│ impersonate trusted entities to steal sensitive information.");
-            Console.WriteLine("│");
-            Console.WriteLine("│ RED FLAGS:");
-            Console.WriteLine("│ • Urgent requests for passwords or personal information");
-            Console.WriteLine("│ • Suspicious sender email addresses");
-            Console.WriteLine("│ • Links that don't match the displayed text");
-            Console.WriteLine("│ • Grammar and spelling errors");
-            Console.WriteLine("│");
-            Console.WriteLine("│ PREVENTION:");
-            Console.WriteLine("│ • Never click links in unexpected emails");
-            Console.WriteLine("│ • Verify sender identity independently");
-            Console.WriteLine("│ • Use email filtering and anti-phishing tools");
-            Console.WriteLine("│ • Report suspicious emails to your IT department");
-            Console.WriteLine("└───────────────────────────────┘");
+            Console.WriteLine();
+            UIHelper.DisplayTypingIndicator();
+            
+            string[] phishingContent = new string[]
+            {
+                $"┌─ PHISHING ATTACKS EDUCATION FOR {_userName.ToUpper()} ─┐",
+                "│ Phishing is a social engineering attack where attackers",
+                "│ impersonate trusted entities to steal sensitive information.",
+                "│",
+                "│ RED FLAGS:",
+                "│ • Urgent requests for passwords or personal information",
+                "│ • Suspicious sender email addresses",
+                "│ • Links that don't match the displayed text",
+                "│ • Grammar and spelling errors",
+                "│",
+                "│ PREVENTION:",
+                "│ • Never click links in unexpected emails",
+                "│ • Verify sender identity independently",
+                "│ • Use email filtering and anti-phishing tools",
+                "│ • Report suspicious emails to your IT department",
+                "└───────────────────────────────┘"
+            };
+            
+            UIHelper.DisplayWithTypingEffectMultiLine(phishingContent);
+            UIHelper.AutoScroll();
         }
 
         /// <summary>
         /// ProvidePasswordEducation() - Educates about creating strong passwords with personalized greeting.
+        /// Uses typing animation to display educational content in an engaging way.
         /// </summary>
         private void ProvidePasswordEducation()
         {
-            Console.WriteLine($"\n┌─ STRONG PASSWORD EDUCATION FOR {_userName.ToUpper()} ─┐");
-            Console.WriteLine("│ A strong password is your first defense against");
-            Console.WriteLine("│ unauthorized access to your accounts.");
-            Console.WriteLine("│");
-            Console.WriteLine("│ STRONG PASSWORD CRITERIA:");
-            Console.WriteLine("│ • At least 12 characters long");
-            Console.WriteLine("│ • Mix of uppercase and lowercase letters");
-            Console.WriteLine("│ • Include numbers and special characters (!@#$%^&*)");
-            Console.WriteLine("│ • Avoid common words, dates, and personal information");
-            Console.WriteLine("│ • Use unique passwords for each account");
-            Console.WriteLine("│");
-            Console.WriteLine("│ BEST PRACTICES:");
-            Console.WriteLine("│ • Use a password manager to securely store passwords");
-            Console.WriteLine("│ • Change passwords if compromised");
-            Console.WriteLine("│ • Never share your password with anyone");
-            Console.WriteLine("└───────────────────────────────┘");
+            Console.WriteLine();
+            UIHelper.DisplayTypingIndicator();
+            
+            string[] passwordContent = new string[]
+            {
+                $"┌─ STRONG PASSWORD EDUCATION FOR {_userName.ToUpper()} ─┐",
+                "│ A strong password is your first defense against",
+                "│ unauthorized access to your accounts.",
+                "│",
+                "│ STRONG PASSWORD CRITERIA:",
+                "│ • At least 12 characters long",
+                "│ • Mix of uppercase and lowercase letters",
+                "│ • Include numbers and special characters (!@#$%^&*)",
+                "│ • Avoid common words, dates, and personal information",
+                "│ • Use unique passwords for each account",
+                "│",
+                "│ BEST PRACTICES:",
+                "│ • Use a password manager to securely store passwords",
+                "│ • Change passwords if compromised",
+                "│ • Never share your password with anyone",
+                "└───────────────────────────────┘"
+            };
+            
+            UIHelper.DisplayWithTypingEffectMultiLine(passwordContent);
+            UIHelper.AutoScroll();
         }
 
         /// <summary>
         /// Provide2FAEducation() - Educates about two-factor authentication with personalized greeting.
+        /// Uses typing animation to display educational content in an engaging way.
         /// </summary>
         private void Provide2FAEducation()
         {
-            Console.WriteLine($"\n┌─ TWO-FACTOR AUTHENTICATION FOR {_userName.ToUpper()} ─┐");
-            Console.WriteLine("│ 2FA adds an extra layer of security by requiring");
-            Console.WriteLine("│ a second verification method in addition to your password.");
-            Console.WriteLine("│");
-            Console.WriteLine("│ COMMON 2FA METHODS:");
-            Console.WriteLine("│ • SMS codes sent to your phone");
-            Console.WriteLine("│ • Authenticator apps (Google Authenticator, Microsoft Authenticator)");
-            Console.WriteLine("│ • Hardware security keys (FIDO2)");
-            Console.WriteLine("│ • Biometric verification (fingerprint, face recognition)");
-            Console.WriteLine("│");
-            Console.WriteLine("│ RECOMMENDATIONS:");
-            Console.WriteLine("│ • Enable 2FA on all critical accounts");
-            Console.WriteLine("│ • Prefer authenticator apps over SMS when possible");
-            Console.WriteLine("│ • Store backup codes in a secure location");
-            Console.WriteLine("└───────────────────────────────┘");
+            Console.WriteLine();
+            UIHelper.DisplayTypingIndicator();
+            
+            string[] twoFAContent = new string[]
+            {
+                $"┌─ TWO-FACTOR AUTHENTICATION FOR {_userName.ToUpper()} ─┐",
+                "│ 2FA adds an extra layer of security by requiring",
+                "│ a second verification method in addition to your password.",
+                "│",
+                "│ COMMON 2FA METHODS:",
+                "│ • SMS codes sent to your phone",
+                "│ • Authenticator apps (Google Authenticator, Microsoft Authenticator)",
+                "│ • Hardware security keys (FIDO2)",
+                "│ • Biometric verification (fingerprint, face recognition)",
+                "│",
+                "│ RECOMMENDATIONS:",
+                "│ • Enable 2FA on all critical accounts",
+                "│ • Prefer authenticator apps over SMS when possible",
+                "│ • Store backup codes in a secure location",
+                "└───────────────────────────────┘"
+            };
+            
+            UIHelper.DisplayWithTypingEffectMultiLine(twoFAContent);
+            UIHelper.AutoScroll();
         }
 
         /// <summary>
         /// ProvidePrivacyEducation() - Educates about data privacy with personalized greeting.
+        /// Uses typing animation to display educational content in an engaging way.
         /// </summary>
         private void ProvidePrivacyEducation()
         {
-            Console.WriteLine($"\n┌─ DATA PRIVACY EDUCATION FOR {_userName.ToUpper()} ─┐");
-            Console.WriteLine("│ Your personal data is valuable. Protect it by being");
-            Console.WriteLine("│ mindful of what information you share online.");
-            Console.WriteLine("│");
-            Console.WriteLine("│ PRIVACY RISKS:");
-            Console.WriteLine("│ • Identity theft");
-            Console.WriteLine("│ • Data breaches");
-            Console.WriteLine("│ • Targeted advertisements and manipulation");
-            Console.WriteLine("│ • Financial fraud");
-            Console.WriteLine("│");
-            Console.WriteLine("│ PROTECTION MEASURES:");
-            Console.WriteLine("│ • Review privacy settings on social media accounts");
-            Console.WriteLine("│ • Limit the information you share publicly");
-            Console.WriteLine("│ • Use VPNs on public Wi-Fi networks");
-            Console.WriteLine("│ • Regularly check your credit reports");
-            Console.WriteLine("│ • Read privacy policies before using new services");
-            Console.WriteLine("└───────────────────────────────┘");
+            Console.WriteLine();
+            UIHelper.DisplayTypingIndicator();
+            
+            string[] privacyContent = new string[]
+            {
+                $"┌─ DATA PRIVACY EDUCATION FOR {_userName.ToUpper()} ─┐",
+                "│ Your personal data is valuable. Protect it by being",
+                "│ mindful of what information you share online.",
+                "│",
+                "│ PRIVACY RISKS:",
+                "│ • Identity theft",
+                "│ • Data breaches",
+                "│ • Targeted advertisements and manipulation",
+                "│ • Financial fraud",
+                "│",
+                "│ PROTECTION MEASURES:",
+                "│ • Review privacy settings on social media accounts",
+                "│ • Limit the information you share publicly",
+                "│ • Use VPNs on public Wi-Fi networks",
+                "│ • Regularly check your credit reports",
+                "│ • Read privacy policies before using new services",
+                "└───────────────────────────────┘"
+            };
+            
+            UIHelper.DisplayWithTypingEffectMultiLine(privacyContent);
+            UIHelper.AutoScroll();
         }
 
         /// <summary>
         /// ProvideBrowsingEducation() - Educates about secure browsing with personalized greeting.
+        /// Uses typing animation to display educational content in an engaging way.
         /// </summary>
         private void ProvideBrowsingEducation()
         {
-            Console.WriteLine($"\n┌─ SECURE BROWSING EDUCATION FOR {_userName.ToUpper()} ─┐");
-            Console.WriteLine("│ Safe browsing habits protect you from malware,");
-            Console.WriteLine("│ phishing, and other online threats.");
-            Console.WriteLine("│");
-            Console.WriteLine("│ SECURE BROWSING PRACTICES:");
-            Console.WriteLine("│ • Look for HTTPS in the URL (padlock icon)");
-            Console.WriteLine("│ • Keep your browser and extensions updated");
-            Console.WriteLine("│ • Use reputable antivirus and anti-malware software");
-            Console.WriteLine("│ • Disable plugins you don't actively use");
-            Console.WriteLine("│ • Be cautious with file downloads");
-            Console.WriteLine("│");
-            Console.WriteLine("│ ADVANCED MEASURES:");
-            Console.WriteLine("│ • Use browser privacy modes for sensitive activities");
-            Console.WriteLine("│ • Install browser extensions for tracking prevention");
-            Console.WriteLine("│ • Use DNS filtering to block malicious sites");
-            Console.WriteLine("│ • Consider using a privacy-focused browser");
-            Console.WriteLine("└───────────────────────────────┘");
+            Console.WriteLine();
+            UIHelper.DisplayTypingIndicator();
+            
+            string[] browsingContent = new string[]
+            {
+                $"┌─ SECURE BROWSING EDUCATION FOR {_userName.ToUpper()} ─┐",
+                "│ Safe browsing habits protect you from malware,",
+                "│ phishing, and other online threats.",
+                "│",
+                "│ SECURE BROWSING PRACTICES:",
+                "│ • Look for HTTPS in the URL (padlock icon)",
+                "│ • Keep your browser and extensions updated",
+                "│ • Use reputable antivirus and anti-malware software",
+                "│ • Disable plugins you don't actively use",
+                "│ • Be cautious with file downloads",
+                "│",
+                "│ ADVANCED MEASURES:",
+                "│ • Use browser privacy modes for sensitive activities",
+                "│ • Install browser extensions for tracking prevention",
+                "│ • Use DNS filtering to block malicious sites",
+                "│ • Consider using a privacy-focused browser",
+                "└───────────────────────────────┘"
+            };
+            
+            UIHelper.DisplayWithTypingEffectMultiLine(browsingContent);
+            UIHelper.AutoScroll();
         }
     }
 }
