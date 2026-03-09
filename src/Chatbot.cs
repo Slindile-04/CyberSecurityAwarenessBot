@@ -56,20 +56,21 @@ namespace CyberSecurityAwarenessBot.Core
         /// - Validates input and handles empty responses gracefully
         /// - Processes user input and provides appropriate responses
         /// - Continues until the user decides to exit
+        /// - Uses color-coded prompts for visual clarity
         /// </summary>
         private void InteractionLoop()
         {
             while (_isRunning)
             {
                 DisplayMenuOptions();
-                Console.Write($"\n{_userName}, what would you like to know? ");
+                UIHelper.PrintColoredLine($"\n{_userName}, what would you like to know? ", ConsoleColor.White, false);
 
                 string? userInput = _inputHelper.GetValidInput();
 
                 // Handle empty input gracefully
                 if (string.IsNullOrWhiteSpace(userInput))
                 {
-                    Console.WriteLine($"I didn't catch that, {_userName}. Please enter something or type 'help' for options.");
+                    UIHelper.PrintColoredLine($"I didn't catch that, {_userName}. Please enter something or type 'help' for options.", ConsoleColor.Yellow);
                     continue;
                 }
 
@@ -81,20 +82,21 @@ namespace CyberSecurityAwarenessBot.Core
         /// <summary>
         /// DisplayMenuOptions() - Shows the available topics and commands in a user-friendly format.
         /// Provides both numeric menu options and text-based keywords for conversational input.
+        /// Uses cyan color for visual consistency with the title screen.
         /// </summary>
         private void DisplayMenuOptions()
         {
-            Console.WriteLine("\n╔════════════════════════════════════════════════════════════╗");
-            Console.WriteLine("║             Cybersecurity Topics (Numeric Menu)            ║");
-            Console.WriteLine("╠════════════════════════════════════════════════════════════╣");
-            Console.WriteLine("║  1. Phishing Attacks   | 2. Strong Passwords               ║");
-            Console.WriteLine("║  3. Two-Factor Auth    | 4. Data Privacy                   ║");
-            Console.WriteLine("║  5. Secure Browsing    | 0. Exit                           ║");
-            Console.WriteLine("╠════════════════════════════════════════════════════════════╣");
-            Console.WriteLine("║ Or just ask naturally:                                     ║");
-            Console.WriteLine("║ • \"How are you?\"  • \"What can you help with?\"              ║");
-            Console.WriteLine("║ • \"Tell me about phishing\"  • \"help\"                       ║");
-            Console.WriteLine("╚════════════════════════════════════════════════════════════╝");
+            UIHelper.PrintColoredLine("\n╔════════════════════════════════════════════════════════════╗", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║             Cybersecurity Topics (Numeric Menu)            ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("╠════════════════════════════════════════════════════════════╣", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║  1. Phishing Attacks   | 2. Strong Passwords               ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║  3. Two-Factor Auth    | 4. Data Privacy                   ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║  5. Secure Browsing    | 0. Exit                           ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("╠════════════════════════════════════════════════════════════╣", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║ Or just ask naturally:                                     ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║ • \"How are you?\"  • \"What can you help with?\"              ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║ • \"Tell me about phishing\"  • \"help\"                       ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("╚════════════════════════════════════════════════════════════╝", ConsoleColor.Cyan);
         }
 
         /// <summary>
@@ -146,7 +148,7 @@ namespace CyberSecurityAwarenessBot.Core
                 case "bye":
                 case "goodbye":
                     _isRunning = false;
-                    Console.WriteLine($"\nTake care, {_userName}! Remember to stay secure online! 🔒");
+                    UIHelper.PrintColoredLine($"\nTake care, {_userName}! Remember to stay secure online! 🔒", ConsoleColor.Green);
                     return;
             }
 
@@ -170,60 +172,66 @@ namespace CyberSecurityAwarenessBot.Core
             }
 
             // If input doesn't match any known pattern, provide a friendly suggestion
-            Console.WriteLine($"\nI'm not sure how to respond to that, {_userName}. Try asking about one of the topics above,");
-            Console.WriteLine("or type 'help' for a list of available options.");
+            UIHelper.PrintColoredLine($"\nI'm not sure how to respond to that, {_userName}. Try asking about one of the topics above,", ConsoleColor.Yellow);
+            UIHelper.PrintColoredLine("or type 'help' for a list of available options.", ConsoleColor.Yellow);
         }
 
         /// <summary>
         /// RespondToGreeting() - Responds conversationally to greetings like "How are you?"
-        /// Uses typing animation for a natural, engaging conversation feel.
+        /// Uses typing animation and color for a natural, engaging conversation feel.
         /// </summary>
         private void RespondToGreeting()
         {
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
+            Console.ForegroundColor = ConsoleColor.Yellow;
             UIHelper.DisplayWithTypingEffect($"✨ I'm functioning perfectly, {_userName}! Thank you for asking.");
             UIHelper.DisplayWithTypingEffect("I'm here to help you learn about cybersecurity and stay safe online.");
+            Console.ResetColor();
             UIHelper.AutoScroll();
         }
 
         /// <summary>
         /// RespondToPurpose() - Explains the chatbot's purpose when asked.
-        /// Uses typing animation for a natural response.
+        /// Uses typing animation and color for a natural response.
         /// </summary>
         private void RespondToPurpose()
         {
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
+            Console.ForegroundColor = ConsoleColor.Yellow;
             UIHelper.DisplayWithTypingEffect($"🎯 My purpose, {_userName}, is to educate you about cybersecurity best practices.");
             UIHelper.DisplayWithTypingEffect("I can teach you about phishing, passwords, two-factor authentication, data privacy, and secure browsing.");
             UIHelper.DisplayWithTypingEffect("Together, we'll help protect South African citizens online!");
+            Console.ResetColor();
             UIHelper.AutoScroll();
         }
 
         /// <summary>
         /// DisplayHelpMessage() - Shows available topics and commands when user asks for help.
+        /// Uses color-coded formatting for better visual organization.
         /// </summary>
         private void DisplayHelpMessage()
         {
-            Console.WriteLine($"\n📚 Here's how I can help, {_userName}:");
-            Console.WriteLine("\n🔒 Cybersecurity Topics:");
+            UIHelper.PrintColoredLine($"\n📚 Here's how I can help, {_userName}:", ConsoleColor.Green);
+            UIHelper.PrintColoredLine("\n🔒 Cybersecurity Topics:", ConsoleColor.Cyan);
             Console.WriteLine("   • Type '1' or 'phishing' - Learn about phishing attacks");
             Console.WriteLine("   • Type '2' or 'password' - Learn about strong passwords");
             Console.WriteLine("   • Type '3' or '2fa' - Learn about two-factor authentication");
             Console.WriteLine("   • Type '4' or 'privacy' - Learn about data privacy");
             Console.WriteLine("   • Type '5' or 'browsing' - Learn about secure browsing");
-            Console.WriteLine("\n💬 Conversational:");
+            UIHelper.PrintColoredLine("\n💬 Conversational:", ConsoleColor.Cyan);
             Console.WriteLine("   • Ask 'How are you?' or 'What's your purpose?'");
             Console.WriteLine("   • Type 'exit' or 'quit' to leave");
         }
 
         /// <summary>
-        /// DisplayWelcomeMessage() - Displays initial welcome and tries to play audio greeting.
+        /// DisplayWelcomeMessage() - Displays initial welcome message with color styling.
+        /// Sets the tone for the interactive session.
         /// </summary>
         private void DisplayWelcomeMessage()
         {
-            Console.WriteLine($"\n🎓 Welcome to the Cybersecurity Awareness Bot, {_userName}!");
+            UIHelper.PrintColoredLine($"\n🎓 Welcome to the Cybersecurity Awareness Bot, {_userName}!", ConsoleColor.Green);
             Console.WriteLine("Learn about important security practices to protect yourself and others online.\n");
 
             // Try to load audio greeting if available
@@ -252,13 +260,14 @@ namespace CyberSecurityAwarenessBot.Core
 
         /// <summary>
         /// ProvidePhishingEducation() - Educates about phishing attacks with personalized greeting.
-        /// Uses typing animation to display educational content in an engaging way.
+        /// Uses typing animation and color to display educational content in an engaging way.
         /// </summary>
         private void ProvidePhishingEducation()
         {
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
             
+            Console.ForegroundColor = ConsoleColor.Yellow;
             string[] phishingContent = new string[]
             {
                 $"┌─ PHISHING ATTACKS EDUCATION FOR {_userName.ToUpper()} ─┐",
@@ -280,18 +289,20 @@ namespace CyberSecurityAwarenessBot.Core
             };
             
             UIHelper.DisplayWithTypingEffectMultiLine(phishingContent);
+            Console.ResetColor();
             UIHelper.AutoScroll();
         }
 
         /// <summary>
         /// ProvidePasswordEducation() - Educates about creating strong passwords with personalized greeting.
-        /// Uses typing animation to display educational content in an engaging way.
+        /// Uses typing animation and color to display educational content in an engaging way.
         /// </summary>
         private void ProvidePasswordEducation()
         {
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
             
+            Console.ForegroundColor = ConsoleColor.Yellow;
             string[] passwordContent = new string[]
             {
                 $"┌─ STRONG PASSWORD EDUCATION FOR {_userName.ToUpper()} ─┐",
@@ -313,18 +324,20 @@ namespace CyberSecurityAwarenessBot.Core
             };
             
             UIHelper.DisplayWithTypingEffectMultiLine(passwordContent);
+            Console.ResetColor();
             UIHelper.AutoScroll();
         }
 
         /// <summary>
         /// Provide2FAEducation() - Educates about two-factor authentication with personalized greeting.
-        /// Uses typing animation to display educational content in an engaging way.
+        /// Uses typing animation and color to display educational content in an engaging way.
         /// </summary>
         private void Provide2FAEducation()
         {
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
             
+            Console.ForegroundColor = ConsoleColor.Yellow;
             string[] twoFAContent = new string[]
             {
                 $"┌─ TWO-FACTOR AUTHENTICATION FOR {_userName.ToUpper()} ─┐",
@@ -345,18 +358,20 @@ namespace CyberSecurityAwarenessBot.Core
             };
             
             UIHelper.DisplayWithTypingEffectMultiLine(twoFAContent);
+            Console.ResetColor();
             UIHelper.AutoScroll();
         }
 
         /// <summary>
         /// ProvidePrivacyEducation() - Educates about data privacy with personalized greeting.
-        /// Uses typing animation to display educational content in an engaging way.
+        /// Uses typing animation and color to display educational content in an engaging way.
         /// </summary>
         private void ProvidePrivacyEducation()
         {
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
             
+            Console.ForegroundColor = ConsoleColor.Yellow;
             string[] privacyContent = new string[]
             {
                 $"┌─ DATA PRIVACY EDUCATION FOR {_userName.ToUpper()} ─┐",
@@ -379,18 +394,20 @@ namespace CyberSecurityAwarenessBot.Core
             };
             
             UIHelper.DisplayWithTypingEffectMultiLine(privacyContent);
+            Console.ResetColor();
             UIHelper.AutoScroll();
         }
 
         /// <summary>
         /// ProvideBrowsingEducation() - Educates about secure browsing with personalized greeting.
-        /// Uses typing animation to display educational content in an engaging way.
+        /// Uses typing animation and color to display educational content in an engaging way.
         /// </summary>
         private void ProvideBrowsingEducation()
         {
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
             
+            Console.ForegroundColor = ConsoleColor.Yellow;
             string[] browsingContent = new string[]
             {
                 $"┌─ SECURE BROWSING EDUCATION FOR {_userName.ToUpper()} ─┐",
@@ -413,6 +430,7 @@ namespace CyberSecurityAwarenessBot.Core
             };
             
             UIHelper.DisplayWithTypingEffectMultiLine(browsingContent);
+            Console.ResetColor();
             UIHelper.AutoScroll();
         }
     }

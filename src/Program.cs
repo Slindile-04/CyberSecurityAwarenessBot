@@ -1,4 +1,5 @@
 using CyberSecurityAwarenessBot.Core;
+using CyberSecurityAwarenessBot.Helpers;
 using System.Media;
 
 namespace CyberSecurityAwarenessBot
@@ -7,11 +8,18 @@ namespace CyberSecurityAwarenessBot
     /// Program.cs - Entry point for the Cyber Security Awareness Bot application
     /// 
     /// Responsibilities:
-    /// - Display the ASCII title banner
+    /// - Display loading sequence for immersive startup experience
+    /// - Display the ASCII title banner with animation
     /// - Play welcome audio greeting
     /// - Display application greeting message
     /// - Collect user's name
     /// - Initialize and start the chatbot with the user's name
+    /// 
+    /// Enhanced Features:
+    /// - Loading sequence with animated initialization messages
+    /// - Animated ASCII art display (line-by-line animation)
+    /// - Color-coded console output for better visual appeal
+    /// - Professional startup experience
     /// 
     /// The chatbot logic itself is separated into Chatbot.cs for clean separation of concerns.
     /// </summary>
@@ -19,6 +27,9 @@ namespace CyberSecurityAwarenessBot
     {
         static void Main(string[] args)
         {
+            // Step 0: Display the startup loading sequence
+            UIHelper.DisplayLoadingSequence();
+
             // Step 1: Display the ASCII title banner at startup
             DisplayTitleScreen();
 
@@ -39,13 +50,17 @@ namespace CyberSecurityAwarenessBot
             bot.Start();
 
             // Step 7: Display farewell message
-            Console.WriteLine($"\nThank you for learning about cybersecurity, {userName}! Stay safe online.");
+            UIHelper.PrintColoredLine($"\nThank you for learning about cybersecurity, {userName}! Stay safe online.", ConsoleColor.Cyan);
         }
 
         /// <summary>
-        /// DisplayTitleScreen() - Displays a cybersecurity-themed ASCII banner at application startup.
-        /// Shows a visually appealing globe design with the application name and motivational messages.
-        /// Waits for 2 seconds before clearing the screen for readability.
+        /// DisplayTitleScreen() - Displays a cybersecurity-themed ASCII banner with animation.
+        /// 
+        /// Enhanced Features:
+        /// - ASCII art displays line-by-line with animation effect
+        /// - Uses green color for the globe ASCII art
+        /// - Shows a visually appealing cybersecurity-themed banner
+        /// - Professional presentation with timing delays
         /// 
         /// NOTE: Console.Clear() Fix for IOException
         /// =========================================
@@ -66,16 +81,14 @@ namespace CyberSecurityAwarenessBot
         /// </summary>
         static void DisplayTitleScreen()
         {
+            // Display the header section with cyan color
+            UIHelper.PrintColoredLine("===========================================================", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("        CYBER SECURITY AWARENESS BOT", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("     Protecting South African Citizens Online", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("===========================================================\n", ConsoleColor.Cyan);
+
             // Multi-line verbatim string containing the ASCII globe banner
-            string titleScreen = @"===========================================================
-        CYBER SECURITY AWARENESS BOT
-     Protecting South African Citizens Online
-===========================================================
-
-
-
-
-               ,,ggddY""""Ybbgg,,
+            string titleAscii = @"               ,,ggddY""""Ybbgg,,
           ,agd888b,_ ""Y8, ___`""Ybga,
        ,gdP""""88888888baa,.""8b    ""888g,
      ,dP""     ]888888888P'  ""Y     `888Yb,
@@ -98,8 +111,10 @@ Y,                    `""8bd888b,             ,P
           `""Y8baa,      ,d888P,ad8P""""     Stay Secure.
                ``""""YYba8888P""""''         Stay Informed.";
 
-            Console.WriteLine(titleScreen);
-            Thread.Sleep(2000);
+            // Display ASCII art with animation effect and green color
+            UIHelper.DisplayAnimatedAscii(titleAscii, ConsoleColor.Green);
+
+            Thread.Sleep(1500);
             
             // Safe console clear: Only clear if output is not redirected
             // This prevents System.IO.IOException when running in redirected/piped environments
@@ -188,37 +203,39 @@ Y,                    `""8bd888b,             ,P
         }
 
         /// <summary>
-        /// DisplayGreetingMessage() - Displays a welcoming message to the user.
+        /// DisplayGreetingMessage() - Displays a welcoming message to the user with color styling.
         /// Explains the purpose of the chatbot and sets a friendly, educational tone.
+        /// Uses cyan color for the header to match the title screen styling.
         /// </summary>
         static void DisplayGreetingMessage()
         {
-            Console.WriteLine("\n╔════════════════════════════════════════════════════════════╗");
-            Console.WriteLine("║         Welcome to the Cybersecurity Awareness Bot         ║");
-            Console.WriteLine("╚════════════════════════════════════════════════════════════╝\n");
+            UIHelper.PrintColoredLine("\n╔════════════════════════════════════════════════════════════╗", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║         Welcome to the Cybersecurity Awareness Bot         ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("╚════════════════════════════════════════════════════════════╝\n", ConsoleColor.Cyan);
             Console.WriteLine("Welcome if you're new, welcome back if you're not.");
             Console.WriteLine("This is the Cybersecurity Awareness Bot, protecting South African citizens online.\n");
         }
 
         /// <summary>
-        /// GetUserName() - Prompts the user to enter their name.
+        /// GetUserName() - Prompts the user to enter their name with color styling.
         /// The name is collected and stored to personalize all future responses.
         /// 
+        /// Uses white color for the user prompt to clearly distinguish user input requests.
         /// Ensures the name is not empty and validates input before returning.
         /// </summary>
         static string GetUserName()
         {
-            Console.Write("Before we begin, what is your name? ");
+            UIHelper.PrintColoredLine("Before we begin, what is your name? ", ConsoleColor.White, false);
             string? name = Console.ReadLine();
 
             // Ensure the user provides a valid name (not empty or whitespace)
             while (string.IsNullOrWhiteSpace(name))
             {
-                Console.Write("Please enter your name: ");
+                UIHelper.PrintColoredLine("Please enter your name: ", ConsoleColor.White, false);
                 name = Console.ReadLine();
             }
 
-            Console.WriteLine($"\nGreat to meet you, {name}! Let's learn about cybersecurity together.\n");
+            UIHelper.PrintColoredLine($"\nGreat to meet you, {name}! Let's learn about cybersecurity together.\n", ConsoleColor.Green);
             return name.Trim();
         }
     }
