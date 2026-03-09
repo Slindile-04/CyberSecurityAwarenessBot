@@ -27,6 +27,9 @@ namespace CyberSecurityAwarenessBot
     {
         static void Main(string[] args)
         {
+            // Enable UTF-8 encoding to support Unicode emoji display in the terminal
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+
             // Step 0: Display the startup loading sequence
             UIHelper.DisplayLoadingSequence();
 

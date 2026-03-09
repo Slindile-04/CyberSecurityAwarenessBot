@@ -146,7 +146,7 @@ namespace CyberSecurityAwarenessBot.Helpers
             Console.WriteLine();
             System.Threading.Thread.Sleep(500);
 
-            Console.ForegroundColor = ConsoleColor.DarkGreen;
+            Console.ForegroundColor = ConsoleColor.White;
             Console.WriteLine("✅ System ready!\n");
             Console.ResetColor();
         }
