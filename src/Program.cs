@@ -54,41 +54,13 @@ namespace CyberSecurityAwarenessBot
         }
 
         /// <summary>
-        /// DisplayTitleScreen() - Displays a cybersecurity-themed ASCII banner with animation.
-        /// 
-        /// Enhanced Features:
-        /// - ASCII art displays line-by-line with animation effect
-        /// - Uses green color for the globe ASCII art
-        /// - Shows a visually appealing cybersecurity-themed banner
-        /// - Professional presentation with timing delays
-        /// 
-        /// NOTE: Console.Clear() Fix for IOException
-        /// =========================================
-        /// The Console.Clear() call was causing a System.IO.IOException with message:
-        /// "The handle is invalid"
-        /// 
-        /// ROOT CAUSE:
-        /// When output is redirected (e.g., piped to a file, output capture in testing, or
-        /// certain IDE/terminal environments), the console handle becomes invalid and
-        /// Console.Clear() throws an exception because it cannot interact with a physical console.
-        /// 
-        /// SOLUTION:
-        /// We check Console.IsOutputRedirected before calling Console.Clear().
-        /// - If IsOutputRedirected is FALSE: We have a real console, so Clear() is safe.
-        /// - If IsOutputRedirected is TRUE: Output is redirected, so we skip Clear().
-        /// 
-        /// This prevents crashes while maintaining intended behavior in normal console environments.
+        /// DisplayHeader() - Displays the ASCII art header that persists throughout the session.
+        /// This method can be called whenever the header needs to be shown.
+        /// Creates a professional cybersecurity-themed banner at the top of the console.
         /// </summary>
-        static void DisplayTitleScreen()
+        static void DisplayHeader()
         {
-            // Display the header section with cyan color
-            UIHelper.PrintColoredLine("===========================================================", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("        CYBER SECURITY AWARENESS BOT", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("     Protecting South African Citizens Online", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("===========================================================\n", ConsoleColor.Cyan);
-
-            // Multi-line verbatim string containing the ASCII globe banner
-            string titleAscii = @"               ,,ggddY""""Ybbgg,,
+            string asciiArt = @"               ,,ggddY""""Ybbgg,,
           ,agd888b,_ ""Y8, ___`""Ybga,
        ,gdP""""88888888baa,.""8b    ""888g,
      ,dP""     ]888888888P'  ""Y     `888Yb,
@@ -111,17 +83,28 @@ Y,                    `""8bd888b,             ,P
           `""Y8baa,      ,d888P,ad8P""""     Stay Secure.
                ``""""YYba8888P""""''         Stay Informed.";
 
-            // Display ASCII art with animation effect and green color
-            UIHelper.DisplayAnimatedAscii(titleAscii, ConsoleColor.Green);
+            // Display ASCII art header with animation and green color
+            UIHelper.DisplayAnimatedAscii(asciiArt, ConsoleColor.Green);
+            Console.WriteLine(); // Add spacing after header
+        }
 
-            Thread.Sleep(1500);
-            
-            // Safe console clear: Only clear if output is not redirected
-            // This prevents System.IO.IOException when running in redirected/piped environments
-            if (!Console.IsOutputRedirected)
-            {
-                Console.Clear();
-            }
+        /// <summary>
+        /// DisplayTitleScreen() - Displays the cybersecurity-themed ASCII banner at startup.
+        /// Shows the intro header and ASCII art that persists throughout the session.
+        /// </summary>
+        static void DisplayTitleScreen()
+        {
+            // Display the intro header section with cyan color
+            UIHelper.PrintColoredLine("===========================================================", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("        CYBER SECURITY AWARENESS BOT", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("     Protecting South African Citizens Online", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("===========================================================\n", ConsoleColor.Cyan);
+
+            // Display the persistent header with ASCII art
+            DisplayHeader();
+
+            // Brief pause to show the splash screen effect
+            Thread.Sleep(1000);
         }
 
         /// <summary>

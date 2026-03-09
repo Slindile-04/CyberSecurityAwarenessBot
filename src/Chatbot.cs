@@ -94,8 +94,8 @@ namespace CyberSecurityAwarenessBot.Core
             UIHelper.PrintColoredLine("║  5. Secure Browsing    | 0. Exit                           ║", ConsoleColor.Cyan);
             UIHelper.PrintColoredLine("╠════════════════════════════════════════════════════════════╣", ConsoleColor.Cyan);
             UIHelper.PrintColoredLine("║ Or just ask naturally:                                     ║", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("║ • \"How are you?\"  • \"What can you help with?\"              ║", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("║ • \"Tell me about phishing\"  • \"help\"                       ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║ • \"How are you?\"  • \"What can you help with?\"               ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║ • \"Tell me about phishing\"  • \"help\"                        ║", ConsoleColor.Cyan);
             UIHelper.PrintColoredLine("╚════════════════════════════════════════════════════════════╝", ConsoleColor.Cyan);
         }
 
