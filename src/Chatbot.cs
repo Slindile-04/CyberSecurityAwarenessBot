@@ -94,8 +94,8 @@ namespace CyberSecurityAwarenessBot.Core
             UIHelper.PrintColoredLine("║  5. Secure Browsing    | 0. Exit                           ║", ConsoleColor.Cyan);
             UIHelper.PrintColoredLine("╠════════════════════════════════════════════════════════════╣", ConsoleColor.Cyan);
             UIHelper.PrintColoredLine("║ Or just ask naturally:                                     ║", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("║ • \"How are you?\"  • \"What can you help with?\"               ║", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("║ • \"Tell me about phishing\"  • \"help\"                        ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║ • \"How are you?\"  • \"What can you help with?\"                    ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║ • \"Tell me about phishing\"  • \"help\"                             ║", ConsoleColor.Cyan);
             UIHelper.PrintColoredLine("╚════════════════════════════════════════════════════════════╝", ConsoleColor.Cyan);
         }
 
@@ -270,7 +270,7 @@ namespace CyberSecurityAwarenessBot.Core
             Console.ForegroundColor = ConsoleColor.Yellow;
             string[] phishingContent = new string[]
             {
-                $"┌─ PHISHING ATTACKS EDUCATION FOR {_userName.ToUpper()} ─┐",
+                $"┌─ PHISHING ATTACKS EDUCATION FOR {_userName.ToUpper()} ─────┐",
                 "│ Phishing is a social engineering attack where attackers",
                 "│ impersonate trusted entities to steal sensitive information.",
                 "│",
@@ -285,7 +285,7 @@ namespace CyberSecurityAwarenessBot.Core
                 "│ • Verify sender identity independently",
                 "│ • Use email filtering and anti-phishing tools",
                 "│ • Report suspicious emails to your IT department",
-                "└───────────────────────────────┘"
+                "└───────────────────────────────────────────────────────────┘"
             };
             
             UIHelper.DisplayWithTypingEffectMultiLine(phishingContent);
@@ -305,7 +305,7 @@ namespace CyberSecurityAwarenessBot.Core
             Console.ForegroundColor = ConsoleColor.Yellow;
             string[] passwordContent = new string[]
             {
-                $"┌─ STRONG PASSWORD EDUCATION FOR {_userName.ToUpper()} ─┐",
+                $"┌─ STRONG PASSWORD EDUCATION FOR {_userName.ToUpper()} ─────┐",
                 "│ A strong password is your first defense against",
                 "│ unauthorized access to your accounts.",
                 "│",
@@ -320,7 +320,7 @@ namespace CyberSecurityAwarenessBot.Core
                 "│ • Use a password manager to securely store passwords",
                 "│ • Change passwords if compromised",
                 "│ • Never share your password with anyone",
-                "└───────────────────────────────┘"
+                "└───────────────────────────────────────────────────────────┘"
             };
             
             UIHelper.DisplayWithTypingEffectMultiLine(passwordContent);
@@ -340,7 +340,7 @@ namespace CyberSecurityAwarenessBot.Core
             Console.ForegroundColor = ConsoleColor.Yellow;
             string[] twoFAContent = new string[]
             {
-                $"┌─ TWO-FACTOR AUTHENTICATION FOR {_userName.ToUpper()} ─┐",
+                $"┌─ TWO-FACTOR AUTHENTICATION FOR {_userName.ToUpper()} ─────────────────┐",
                 "│ 2FA adds an extra layer of security by requiring",
                 "│ a second verification method in addition to your password.",
                 "│",
@@ -354,7 +354,7 @@ namespace CyberSecurityAwarenessBot.Core
                 "│ • Enable 2FA on all critical accounts",
                 "│ • Prefer authenticator apps over SMS when possible",
                 "│ • Store backup codes in a secure location",
-                "└───────────────────────────────┘"
+                "└───────────────────────────────────────────────────────────────────────┘"
             };
             
             UIHelper.DisplayWithTypingEffectMultiLine(twoFAContent);
@@ -374,7 +374,7 @@ namespace CyberSecurityAwarenessBot.Core
             Console.ForegroundColor = ConsoleColor.Yellow;
             string[] privacyContent = new string[]
             {
-                $"┌─ DATA PRIVACY EDUCATION FOR {_userName.ToUpper()} ─┐",
+                $"┌─ DATA PRIVACY EDUCATION FOR {_userName.ToUpper()} ─────────┐",
                 "│ Your personal data is valuable. Protect it by being",
                 "│ mindful of what information you share online.",
                 "│",
@@ -390,7 +390,7 @@ namespace CyberSecurityAwarenessBot.Core
                 "│ • Use VPNs on public Wi-Fi networks",
                 "│ • Regularly check your credit reports",
                 "│ • Read privacy policies before using new services",
-                "└───────────────────────────────┘"
+                "└─────────────────────────────────────────────────────────┘"
             };
             
             UIHelper.DisplayWithTypingEffectMultiLine(privacyContent);
@@ -410,7 +410,7 @@ namespace CyberSecurityAwarenessBot.Core
             Console.ForegroundColor = ConsoleColor.Yellow;
             string[] browsingContent = new string[]
             {
-                $"┌─ SECURE BROWSING EDUCATION FOR {_userName.ToUpper()} ─┐",
+                $"┌─ SECURE BROWSING EDUCATION FOR {_userName.ToUpper()} ─────┐",
                 "│ Safe browsing habits protect you from malware,",
                 "│ phishing, and other online threats.",
                 "│",
@@ -426,7 +426,7 @@ namespace CyberSecurityAwarenessBot.Core
                 "│ • Install browser extensions for tracking prevention",
                 "│ • Use DNS filtering to block malicious sites",
                 "│ • Consider using a privacy-focused browser",
-                "└───────────────────────────────┘"
+                "└─────────────────────────────────────────────────────────┘"
             };
             
             UIHelper.DisplayWithTypingEffectMultiLine(browsingContent);

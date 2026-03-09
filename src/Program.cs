@@ -94,11 +94,11 @@ Y,                    `""8bd888b,             ,P
         /// </summary>
         static void DisplayTitleScreen()
         {
-            // Display the intro header section with cyan color
-            UIHelper.PrintColoredLine("===========================================================", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("        CYBER SECURITY AWARENESS BOT", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("     Protecting South African Citizens Online", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("===========================================================\n", ConsoleColor.Cyan);
+            // Display the intro header section with green color to match ASCII art
+            UIHelper.PrintColoredLine("===========================================================", ConsoleColor.Green);
+            UIHelper.PrintColoredLine("        CYBER SECURITY AWARENESS BOT", ConsoleColor.Green);
+            UIHelper.PrintColoredLine("     Protecting South African Citizens Online", ConsoleColor.Green);
+            UIHelper.PrintColoredLine("===========================================================\n", ConsoleColor.Green);
 
             // Display the persistent header with ASCII art
             DisplayHeader();

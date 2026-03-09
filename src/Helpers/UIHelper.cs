@@ -117,7 +117,7 @@ namespace CyberSecurityAwarenessBot.Helpers
         /// </summary>
         public static void DisplayLoadingSequence()
         {
-            Console.ForegroundColor = ConsoleColor.DarkYellow;
+            Console.ForegroundColor = ConsoleColor.Red;
             
             Console.Write("Initializing CyberSecurity Awareness Bot");
             for (int i = 0; i < 3; i++)
@@ -146,6 +146,7 @@ namespace CyberSecurityAwarenessBot.Helpers
             Console.WriteLine();
             System.Threading.Thread.Sleep(500);
 
+            Console.ForegroundColor = ConsoleColor.DarkGreen;
             Console.WriteLine("✅ System ready!\n");
             Console.ResetColor();
         }
