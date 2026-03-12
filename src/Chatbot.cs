@@ -70,7 +70,7 @@ namespace CyberSecurityAwarenessBot.Core
                 // Handle empty input gracefully
                 if (string.IsNullOrWhiteSpace(userInput))
                 {
-                    UIHelper.PrintColoredLine($"I didn't catch that, {_userName}. Please enter something or type 'help' for options.", ConsoleColor.Yellow);
+                    UIHelper.DisplayBotMessage($"I didn't catch that, {_userName}. Please enter something or type 'help' for options.", ConsoleColor.Yellow);
                     continue;
                 }
 
@@ -94,8 +94,8 @@ namespace CyberSecurityAwarenessBot.Core
             UIHelper.PrintColoredLine("║  5. Secure Browsing    | 0. Exit                           ║", ConsoleColor.Cyan);
             UIHelper.PrintColoredLine("╠════════════════════════════════════════════════════════════╣", ConsoleColor.Cyan);
             UIHelper.PrintColoredLine("║ Or just ask naturally:                                     ║", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("║ • \"How are you?\"  • \"What can you help with?\"          ║", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("║ • \"Tell me about phishing\"  • \"help\"                   ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║ • \"How are you?\"  • \"What can you help with?\"         ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║ • \"Tell me about phishing\"  • \"help\"                  ║", ConsoleColor.Cyan);
             UIHelper.PrintColoredLine("╚════════════════════════════════════════════════════════════╝", ConsoleColor.Cyan);
         }
 
@@ -148,7 +148,8 @@ namespace CyberSecurityAwarenessBot.Core
                 case "bye":
                 case "goodbye":
                     _isRunning = false;
-                    UIHelper.PrintColoredLine($"\nTake care, {_userName}! Remember to stay secure online! 🔒", ConsoleColor.Green);
+                    Console.WriteLine();
+                    UIHelper.DisplayBotMessage($"Take care, {_userName}! Remember to stay secure online! 🔒", ConsoleColor.Green);
                     return;
             }
 
@@ -172,8 +173,9 @@ namespace CyberSecurityAwarenessBot.Core
             }
 
             // If input doesn't match any known pattern, provide a friendly suggestion
-            UIHelper.PrintColoredLine($"\nI'm not sure how to respond to that, {_userName}. Try asking about one of the topics above,", ConsoleColor.Yellow);
-            UIHelper.PrintColoredLine("or type 'help' for a list of available options.", ConsoleColor.Yellow);
+            Console.WriteLine();
+            UIHelper.DisplayBotMessage($"I'm not sure how to respond to that, {_userName}. Try asking about one of the topics above,", ConsoleColor.Yellow);
+            UIHelper.DisplayBotMessage("or type 'help' for a list of available options.", ConsoleColor.Yellow);
         }
 
         /// <summary>
@@ -184,10 +186,8 @@ namespace CyberSecurityAwarenessBot.Core
         {
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            UIHelper.DisplayWithTypingEffect($"✨ I'm functioning perfectly, {_userName}! Thank you for asking.");
-            UIHelper.DisplayWithTypingEffect("I'm here to help you learn about cybersecurity and stay safe online.");
-            Console.ResetColor();
+            UIHelper.DisplayBotMessage($"✨ I'm functioning perfectly, {_userName}! Thank you for asking.", ConsoleColor.Yellow);
+            UIHelper.DisplayBotMessage("I'm here to help you learn about cybersecurity and stay safe online.", ConsoleColor.Yellow);
             UIHelper.AutoScroll();
         }
 
@@ -199,40 +199,43 @@ namespace CyberSecurityAwarenessBot.Core
         {
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            UIHelper.DisplayWithTypingEffect($"🎯 My purpose, {_userName}, is to educate you about cybersecurity best practices.");
-            UIHelper.DisplayWithTypingEffect("I can teach you about phishing, passwords, two-factor authentication, data privacy, and secure browsing.");
-            UIHelper.DisplayWithTypingEffect("Together, we'll help protect South African citizens online!");
-            Console.ResetColor();
+            UIHelper.DisplayBotMessage($"🎯 My purpose, {_userName}, is to educate you about cybersecurity best practices.", ConsoleColor.Yellow);
+            UIHelper.DisplayBotMessage("I can teach you about phishing, passwords, two-factor authentication, data privacy, and secure browsing.", ConsoleColor.Yellow);
+            UIHelper.DisplayBotMessage("Together, we'll help protect South African citizens online!", ConsoleColor.Yellow);
             UIHelper.AutoScroll();
         }
 
         /// <summary>
-        /// DisplayHelpMessage() - Shows available topics and commands when user asks for help.
-        /// Uses color-coded formatting for better visual organization.
+        /// DisplayHelpMessage() - Shows available topics and commands with typing effect.
+        /// Uses color-coded formatting and typing animation for consistent user experience.
         /// </summary>
         private void DisplayHelpMessage()
         {
-            UIHelper.PrintColoredLine($"\n📚 Here's how I can help, {_userName}:", ConsoleColor.Green);
-            UIHelper.PrintColoredLine("\n🔒 Cybersecurity Topics:", ConsoleColor.Cyan);
-            Console.WriteLine("   • Type '1' or 'phishing' - Learn about phishing attacks");
-            Console.WriteLine("   • Type '2' or 'password' - Learn about strong passwords");
-            Console.WriteLine("   • Type '3' or '2fa' - Learn about two-factor authentication");
-            Console.WriteLine("   • Type '4' or 'privacy' - Learn about data privacy");
-            Console.WriteLine("   • Type '5' or 'browsing' - Learn about secure browsing");
-            UIHelper.PrintColoredLine("\n💬 Conversational:", ConsoleColor.Cyan);
-            Console.WriteLine("   • Ask 'How are you?' or 'What's your purpose?'");
-            Console.WriteLine("   • Type 'exit' or 'quit' to leave");
+            Console.WriteLine();
+            UIHelper.DisplayBotMessage($"📚 Here's how I can help, {_userName}:", ConsoleColor.Green);
+            Console.WriteLine();
+            UIHelper.DisplayBotMessage("🔒 Cybersecurity Topics:", ConsoleColor.Cyan);
+            UIHelper.DisplayBotMessage("   • Type '1' or 'phishing' - Learn about phishing attacks", ConsoleColor.White);
+            UIHelper.DisplayBotMessage("   • Type '2' or 'password' - Learn about strong passwords", ConsoleColor.White);
+            UIHelper.DisplayBotMessage("   • Type '3' or '2fa' - Learn about two-factor authentication", ConsoleColor.White);
+            UIHelper.DisplayBotMessage("   • Type '4' or 'privacy' - Learn about data privacy", ConsoleColor.White);
+            UIHelper.DisplayBotMessage("   • Type '5' or 'browsing' - Learn about secure browsing", ConsoleColor.White);
+            Console.WriteLine();
+            UIHelper.DisplayBotMessage("💬 Conversational:", ConsoleColor.Cyan);
+            UIHelper.DisplayBotMessage("   • Ask 'How are you?' or 'What's your purpose?'", ConsoleColor.White);
+            UIHelper.DisplayBotMessage("   • Type 'exit' or 'quit' to leave", ConsoleColor.White);
         }
 
         /// <summary>
-        /// DisplayWelcomeMessage() - Displays initial welcome message with color styling.
-        /// Sets the tone for the interactive session.
+        /// DisplayWelcomeMessage() - Displays initial welcome message with typing effect.
+        /// Sets the tone for the interactive session with consistent bot response styling.
         /// </summary>
         private void DisplayWelcomeMessage()
         {
-            UIHelper.PrintColoredLine($"\n🎓 Welcome to the Cybersecurity Awareness Bot, {_userName}!", ConsoleColor.Green);
-            Console.WriteLine("Learn about important security practices to protect yourself and others online.\n");
+            Console.WriteLine();
+            UIHelper.DisplayBotMessage($"🎓 Welcome to the Cybersecurity Awareness Bot, {_userName}!", ConsoleColor.Green);
+            UIHelper.DisplayBotMessage("Learn about important security practices to protect yourself and others online.", ConsoleColor.Green);
+            Console.WriteLine();
 
             // Try to load audio greeting if available
             TryPlayAudioGreeting();
@@ -267,29 +270,32 @@ namespace CyberSecurityAwarenessBot.Core
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
             
-            Console.ForegroundColor = ConsoleColor.Yellow;
             string[] phishingContent = new string[]
             {
-                $"┌─ PHISHING ATTACKS EDUCATION FOR {_userName.ToUpper()} ─────┐",
-                "│ Phishing is a social engineering attack where attackers",
-                "│ impersonate trusted entities to steal sensitive information.",
-                "│",
-                "│ RED FLAGS:",
-                "│ • Urgent requests for passwords or personal information",
-                "│ • Suspicious sender email addresses",
-                "│ • Links that don't match the displayed text",
-                "│ • Grammar and spelling errors",
-                "│",
-                "│ PREVENTION:",
-                "│ • Never click links in unexpected emails",
-                "│ • Verify sender identity independently",
-                "│ • Use email filtering and anti-phishing tools",
-                "│ • Report suspicious emails to your IT department",
-                "└───────────────────────────────────────────────────────────┘"
+                "┌────────────── PHISHING ATTACKS EDUCATION ──────────────┐",
+                $"│ User: {_userName.PadRight(48)} │",
+                "├────────────────────────────────────────────────────────┤",
+                "│ Phishing is a social engineering attack where attackers│",
+                "│ impersonate trusted entities to steal sensitive info.  │",
+                "│                                                        │",
+                "│ RED FLAGS:                                             │",
+                "│ • Urgent requests for passwords or personal info       │",
+                "│ • Suspicious sender email addresses                    │",
+                "│ • Links that don't match the displayed text            │",
+                "│ • Grammar and spelling errors                          │",
+                "│                                                        │",
+                "│ PREVENTION:                                            │",
+                "│ • Never click links in unexpected emails               │",
+                "│ • Verify sender identity independently                 │",
+                "│ • Use email filtering and anti-phishing tools          │",
+                "│ • Report suspicious emails to your IT department       │",
+                "└────────────────────────────────────────────────────────┘"
             };
             
-            UIHelper.DisplayWithTypingEffectMultiLine(phishingContent);
-            Console.ResetColor();
+            foreach (var line in phishingContent)
+            {
+                UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
+            }
             UIHelper.AutoScroll();
         }
 
@@ -302,29 +308,32 @@ namespace CyberSecurityAwarenessBot.Core
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
             
-            Console.ForegroundColor = ConsoleColor.Yellow;
             string[] passwordContent = new string[]
             {
-                $"┌─ STRONG PASSWORD EDUCATION FOR {_userName.ToUpper()} ─────┐",
-                "│ A strong password is your first defense against",
-                "│ unauthorized access to your accounts.",
-                "│",
-                "│ STRONG PASSWORD CRITERIA:",
-                "│ • At least 12 characters long",
-                "│ • Mix of uppercase and lowercase letters",
-                "│ • Include numbers and special characters (!@#$%^&*)",
-                "│ • Avoid common words, dates, and personal information",
-                "│ • Use unique passwords for each account",
-                "│",
-                "│ BEST PRACTICES:",
-                "│ • Use a password manager to securely store passwords",
-                "│ • Change passwords if compromised",
-                "│ • Never share your password with anyone",
-                "└───────────────────────────────────────────────────────────┘"
+                "┌────────── STRONG PASSWORD EDUCATION ───────────────────┐",
+                $"│ User: {_userName.PadRight(48)} │",
+                "├────────────────────────────────────────────────────────┤",
+                "│ A strong password is your first defense against        │",
+                "│ unauthorized access to your accounts.                  │",
+                "│                                                        │",
+                "│ STRONG PASSWORD CRITERIA:                              │",
+                "│ • At least 12 characters long                          │",
+                "│ • Mix of uppercase and lowercase letters               │",
+                "│ • Include numbers and special characters (!@#$%^&*)    │",
+                "│ • Avoid common words, dates, and personal info         │",
+                "│ • Use unique passwords for each account                │",
+                "│                                                        │",
+                "│ BEST PRACTICES:                                        │",
+                "│ • Use a password manager to securely store passwords   │",
+                "│ • Change passwords if compromised                      │",
+                "│ • Never share your password with anyone                │",
+                "└────────────────────────────────────────────────────────┘"
             };
             
-            UIHelper.DisplayWithTypingEffectMultiLine(passwordContent);
-            Console.ResetColor();
+            foreach (var line in passwordContent)
+            {
+                UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
+            }
             UIHelper.AutoScroll();
         }
 
@@ -337,28 +346,31 @@ namespace CyberSecurityAwarenessBot.Core
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
             
-            Console.ForegroundColor = ConsoleColor.Yellow;
             string[] twoFAContent = new string[]
             {
-                $"┌─ TWO-FACTOR AUTHENTICATION FOR {_userName.ToUpper()} ─────────────────┐",
-                "│ 2FA adds an extra layer of security by requiring",
-                "│ a second verification method in addition to your password.",
-                "│",
-                "│ COMMON 2FA METHODS:",
-                "│ • SMS codes sent to your phone",
-                "│ • Authenticator apps (Google Authenticator, Microsoft Authenticator)",
-                "│ • Hardware security keys (FIDO2)",
-                "│ • Biometric verification (fingerprint, face recognition)",
-                "│",
-                "│ RECOMMENDATIONS:",
-                "│ • Enable 2FA on all critical accounts",
-                "│ • Prefer authenticator apps over SMS when possible",
-                "│ • Store backup codes in a secure location",
-                "└───────────────────────────────────────────────────────────────────────┘"
+                "┌─────── TWO-FACTOR AUTHENTICATION (2FA) ────────────────┐",
+                $"│ User: {_userName.PadRight(48)} │",
+                "├────────────────────────────────────────────────────────┤",
+                "│ 2FA adds an extra layer of security by requiring       │",
+                "│ a second verification method in addition to password.  │",
+                "│                                                        │",
+                "│ COMMON 2FA METHODS:                                    │",
+                "│ • SMS codes sent to your phone                         │",
+                "│ • Authenticator apps (Google Authenticator, etc.)      │",
+                "│ • Hardware security keys (FIDO2)                       │",
+                "│ • Biometric verification (fingerprint, face)           │",
+                "│                                                        │",
+                "│ RECOMMENDATIONS:                                       │",
+                "│ • Enable 2FA on all critical accounts                  │",
+                "│ • Prefer authenticator apps over SMS                   │",
+                "│ • Store backup codes in a secure location              │",
+                "└────────────────────────────────────────────────────────┘"
             };
             
-            UIHelper.DisplayWithTypingEffectMultiLine(twoFAContent);
-            Console.ResetColor();
+            foreach (var line in twoFAContent)
+            {
+                UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
+            }
             UIHelper.AutoScroll();
         }
 
@@ -371,30 +383,33 @@ namespace CyberSecurityAwarenessBot.Core
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
             
-            Console.ForegroundColor = ConsoleColor.Yellow;
             string[] privacyContent = new string[]
             {
-                $"┌─ DATA PRIVACY EDUCATION FOR {_userName.ToUpper()} ─────────┐",
-                "│ Your personal data is valuable. Protect it by being",
-                "│ mindful of what information you share online.",
-                "│",
-                "│ PRIVACY RISKS:",
-                "│ • Identity theft",
-                "│ • Data breaches",
-                "│ • Targeted advertisements and manipulation",
-                "│ • Financial fraud",
-                "│",
-                "│ PROTECTION MEASURES:",
-                "│ • Review privacy settings on social media accounts",
-                "│ • Limit the information you share publicly",
-                "│ • Use VPNs on public Wi-Fi networks",
-                "│ • Regularly check your credit reports",
-                "│ • Read privacy policies before using new services",
-                "└─────────────────────────────────────────────────────────┘"
+                "┌──────────── DATA PRIVACY EDUCATION ────────────────────┐",
+                $"│ User: {_userName.PadRight(48)} │",
+                "├────────────────────────────────────────────────────────┤",
+                "│ Your personal data is valuable. Protect it by being    │",
+                "│ mindful of what information you share online.          │",
+                "│                                                        │",
+                "│ PRIVACY RISKS:                                         │",
+                "│ • Identity theft                                       │",
+                "│ • Data breaches                                        │",
+                "│ • Targeted advertisements and manipulation             │",
+                "│ • Financial fraud                                      │",
+                "│                                                        │",
+                "│ PROTECTION MEASURES:                                   │",
+                "│ • Review privacy settings on social media accounts     │",
+                "│ • Limit the information you share publicly             │",
+                "│ • Use VPNs on public Wi-Fi networks                    │",
+                "│ • Regularly check your credit reports                  │",
+                "│ • Read privacy policies before using new services      │",
+                "└────────────────────────────────────────────────────────┘"
             };
             
-            UIHelper.DisplayWithTypingEffectMultiLine(privacyContent);
-            Console.ResetColor();
+            foreach (var line in privacyContent)
+            {
+                UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
+            }
             UIHelper.AutoScroll();
         }
 
@@ -407,30 +422,33 @@ namespace CyberSecurityAwarenessBot.Core
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
             
-            Console.ForegroundColor = ConsoleColor.Yellow;
             string[] browsingContent = new string[]
             {
-                $"┌─ SECURE BROWSING EDUCATION FOR {_userName.ToUpper()} ─────┐",
-                "│ Safe browsing habits protect you from malware,",
-                "│ phishing, and other online threats.",
-                "│",
-                "│ SECURE BROWSING PRACTICES:",
-                "│ • Look for HTTPS in the URL (padlock icon)",
-                "│ • Keep your browser and extensions updated",
-                "│ • Use reputable antivirus and anti-malware software",
-                "│ • Disable plugins you don't actively use",
-                "│ • Be cautious with file downloads",
-                "│",
-                "│ ADVANCED MEASURES:",
-                "│ • Use browser privacy modes for sensitive activities",
-                "│ • Install browser extensions for tracking prevention",
-                "│ • Use DNS filtering to block malicious sites",
-                "│ • Consider using a privacy-focused browser",
-                "└─────────────────────────────────────────────────────────┘"
+                "┌────────── SECURE BROWSING EDUCATION ───────────────────┐",
+                $"│ User: {_userName.PadRight(48)} │",
+                "├────────────────────────────────────────────────────────┤",
+                "│ Safe browsing habits protect you from malware,         │",
+                "│ phishing, and other online threats.                    │",
+                "│                                                        │",
+                "│ SECURE BROWSING PRACTICES:                             │",
+                "│ • Look for HTTPS in the URL (padlock icon)             │",
+                "│ • Keep your browser and extensions updated             │",
+                "│ • Use reputable antivirus and anti-malware software    │",
+                "│ • Disable plugins you don't actively use               │",
+                "│ • Be cautious with file downloads                      │",
+                "│                                                        │",
+                "│ ADVANCED MEASURES:                                     │",
+                "│ • Use browser privacy modes for sensitive activities   │",
+                "│ • Install browser extensions for tracking prevention   │",
+                "│ • Use DNS filtering to block malicious sites           │",
+                "│ • Consider using a privacy-focused browser             │",
+                "└────────────────────────────────────────────────────────┘"
             };
             
-            UIHelper.DisplayWithTypingEffectMultiLine(browsingContent);
-            Console.ResetColor();
+            foreach (var line in browsingContent)
+            {
+                UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
+            }
             UIHelper.AutoScroll();
         }
     }

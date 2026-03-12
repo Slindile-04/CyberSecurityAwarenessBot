@@ -232,6 +232,36 @@ namespace CyberSecurityAwarenessBot.Helpers
         }
 
         /// <summary>
+        /// DisplayBotMessage() - Unified method for displaying bot responses with typing effect.
+        /// 
+        /// Purpose:
+        /// - Provides a single, consistent method for all bot message responses
+        /// - Ensures every bot response uses the typing effect for consistency
+        /// - Simplifies code and eliminates duplicated typing logic
+        /// - Makes it easy to apply formatting universally
+        /// 
+        /// Parameters:
+        /// - message: The bot's response text to display
+        /// - color: The console color to use (default: Yellow for bot responses)
+        /// 
+        /// Behavior:
+        /// - Sets the specified color before displaying the message
+        /// - Displays the message with character-by-character typing animation
+        /// - Resets the console color after display
+        /// - Properly handles newlines and formatting
+        /// 
+        /// Example:
+        /// DisplayBotMessage($"Hello {userName}! This is a bot response.");
+        /// DisplayBotMessage("Error: Invalid input", ConsoleColor.Red);
+        /// </summary>
+        public static void DisplayBotMessage(string message, ConsoleColor color = ConsoleColor.Yellow)
+        {
+            Console.ForegroundColor = color;
+            DisplayWithTypingEffect(message);
+            Console.ResetColor();
+        }
+
+        /// <summary>
         /// AutoScroll() - Ensures the chat window scrolls to show the latest message
         /// 
         /// In a console application, auto-scrolling happens naturally as new lines
