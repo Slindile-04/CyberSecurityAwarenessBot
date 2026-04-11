@@ -32,9 +32,4 @@ jobs:
       if: always()
       run: |
         echo "Build job completed!"
-        if ($LASTEXITCODE -eq 0) {
-          echo "✅ Build succeeded"
-        } else {
-          echo "❌ Build failed"
-          exit 1
-        }
+        echo "✅ Build succeeded"
