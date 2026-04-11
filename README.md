@@ -163,8 +163,8 @@ dotnet run
 ║  5. Secure Browsing    | 0. Exit                           ║
 ╠════════════════════════════════════════════════════════════╣
 ║ Or just ask naturally:                                     ║
-║ • "How are you?"  • "What can you help with?"         ║
-║ • "Tell me about phishing"  • "help"                  ║
+║ • "How are you?"  • "What can you help with?"              ║
+║ • "Tell me about phishing"  • "help"                       ║
 ╚════════════════════════════════════════════════════════════╝
 
 Your Name, what would you like to know? phishing
@@ -311,5 +311,5 @@ For questions, issues, or suggestions, please:
 
 ---
 
-**Last Updated:** March 12, 2026  
+**Last Updated:** April 12, 2026  
 **Status:** Part 1 Complete ✅ | Part 2 (In Planning)

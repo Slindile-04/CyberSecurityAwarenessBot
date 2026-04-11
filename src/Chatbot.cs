@@ -84,20 +84,21 @@ namespace CyberSecurityAwarenessBot.Core
         /// Provides both numeric menu options and text-based keywords for conversational input.
         /// Uses cyan color for visual consistency with the title screen.
         /// </summary>
-        private void DisplayMenuOptions()
-        {
-            UIHelper.PrintColoredLine("\n╔════════════════════════════════════════════════════════════╗", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("║             Cybersecurity Topics (Numeric Menu)            ║", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("╠════════════════════════════════════════════════════════════╣", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("║  1. Phishing Attacks   | 2. Strong Passwords               ║", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("║  3. Two-Factor Auth    | 4. Data Privacy                   ║", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("║  5. Secure Browsing    | 0. Exit                           ║", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("╠════════════════════════════════════════════════════════════╣", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("║ Or just ask naturally:                                     ║", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("║ • \"How are you?\"  • \"What can you help with?\"         ║", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("║ • \"Tell me about phishing\"  • \"help\"                  ║", ConsoleColor.Cyan);
-            UIHelper.PrintColoredLine("╚════════════════════════════════════════════════════════════╝", ConsoleColor.Cyan);
-        }
+private void DisplayMenuOptions()
+{
+    UIHelper.PrintColoredLine("\n╔════════════════════════════════════════════════════════════╗", ConsoleColor.Cyan);
+    UIHelper.PrintColoredLine("║             Cybersecurity Topics (Numeric Menu)            ║", ConsoleColor.Cyan);
+    UIHelper.PrintColoredLine("╠════════════════════════════════════════════════════════════╣", ConsoleColor.Cyan);
+    UIHelper.PrintColoredLine("║  1. Phishing Attacks   | 2. Strong Passwords               ║", ConsoleColor.Cyan);
+    UIHelper.PrintColoredLine("║  3. Two-Factor Auth    | 4. Data Privacy                   ║", ConsoleColor.Cyan);
+    UIHelper.PrintColoredLine("║  5. Secure Browsing    | 0. Exit                           ║", ConsoleColor.Cyan);
+    UIHelper.PrintColoredLine("╠════════════════════════════════════════════════════════════╣", ConsoleColor.Cyan);
+    UIHelper.PrintColoredLine("║ Or just ask naturally:                                     ║", ConsoleColor.Cyan);
+    UIHelper.PrintColoredLine("║ • \"How are you?\"             • \"What can you help with?\"   ║", ConsoleColor.Cyan);
+    UIHelper.PrintColoredLine("║ • \"Tell me about phishing\"   • \"help\"                      ║", ConsoleColor.Cyan);
+    UIHelper.PrintColoredLine("╚════════════════════════════════════════════════════════════╝", ConsoleColor.Cyan);
+}
+
 
         /// <summary>
         /// HandleUserInput() - Processes user input and routes to appropriate handler.
