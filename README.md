@@ -27,11 +27,22 @@ The **CyberSecurityAwarenessBot** is an interactive console application that ser
 
 ---
 
-## Features
+## 🚀 Features
 
-### Part 1 Implementation ✅
+### Core Features ✅
 
-The following features have been successfully implemented in Part 1:
+#### Phase 1: Foundation ✅
+- **Keyword Recognition** – Identifies cybersecurity topics from natural language
+- **Random Tip Responses** – Delivers varied tips to keep learning engaging
+- **Conversation Flow with Topic Tracking** – Maintains context across interactions
+
+#### Phase 2: Intelligence & Personalization ✅
+- **Memory & Recall System** – Stores user preferences and discussion history for personalized responses
+- **Sentiment Detection** – Detects user emotions (Worried, Curious, Frustrated) and adapts tone accordingly
+
+### Part 1 Implementation Details ✅
+
+The following UI and interaction features have been successfully implemented:
 
 #### 🎨 **Visual Design**
 - **ASCII Title Screen** – Cybersecurity-themed ASCII art banner displayed at startup with line-by-line animation
@@ -76,13 +87,58 @@ The following features have been successfully implemented in Part 1:
 
 ---
 
-## Project Structure
+## 🧠 Advanced Features (Phase 2)
+
+### Memory & Recall System
+
+The chatbot now intelligently remembers user information to provide personalized experiences:
+
+- **Favorite Topic Tracking** – Automatically identifies and stores the user's primary interest
+- **Interest Management** – Records all topics the user expresses interest in
+- **Discussion History** – Tracks all topics discussed during the session for context-awareness
+- **Personalized Responses** – References stored information to connect topics and provide relevant advice
+  - Example: "Since privacy is important to you, here's additional context on how it relates to password security."
+
+**Use Case:** When a user asks "Give me another tip," the chatbot remembers the topic they were discussing and provides a new tip on that same topic without requiring them to specify it again.
+
+### Sentiment Detection System
+
+The chatbot analyzes user input to understand emotional state and adapts responses accordingly:
+
+**Detected Sentiments:**
+- 😟 **Worried** – User expresses fear or concern (keywords: scared, worried, unsafe, concerned)
+  - *Bot Response Tone:* Reassuring and empowering
+  - *Example:* "I understand phishing might feel concerning, but you're taking the right steps by learning."
+
+- 😤 **Frustrated** – User expresses confusion or difficulty (keywords: confused, hard, overwhelm, frustrated)
+  - *Bot Response Tone:* Simplifying and supportive
+  - *Example:* "I know this might feel overwhelming, but let me break it down in a simpler way."
+
+- 🤔 **Curious** – User shows interest in learning (keywords: how, why, interested, want to learn)
+  - *Bot Response Tone:* Encouraging and engaging
+  - *Example:* "I love your curiosity! Let's dive deeper into this topic."
+
+- 😊 **Positive** – User expresses satisfaction or gratitude (keywords: great, awesome, appreciate, helpful)
+  - *Bot Response Tone:* Enthusiastic and affirming
+  - *Example:* "I'm thrilled to explore this with you!"
+
+- 💬 **Neutral** – No specific sentiment detected
+  - *Bot Response Tone:* Standard professional response
+
+**Practical Benefit:** Users receive emotionally intelligent responses that feel more natural and supportive, improving engagement and learning outcomes.
+
+---
+
+## 🆕 Updated Project Structure
 
 ```
 CyberSecurityAwarenessBot/
 ├── src/
 │   ├── Program.cs                 # Entry point and startup orchestration
 │   ├── Chatbot.cs                 # Core chatbot logic and conversation engine
+│   ├── UserMemory.cs              # Memory & Recall system (STEP 5)
+│   ├── SentimentAnalyzer.cs       # Sentiment Detection system (STEP 6)
+│   ├── TipRepository.cs           # Centralized tip storage and retrieval
 │   └── Helpers/
 │       ├── UIHelper.cs            # UI utilities (colors, animations, typing effects)
 │       └── InputHelper.cs         # Input validation and processing
@@ -100,7 +156,10 @@ CyberSecurityAwarenessBot/
 | File | Purpose |
 |------|---------|
 | **Program.cs** | Entry point that orchestrates startup sequence: loading animation → ASCII title → audio greeting → user name collection → chatbot initialization |
-| **Chatbot.cs** | Core conversation engine with intelligent route matching for both numeric menu and natural language inputs |
+| **Chatbot.cs** | Core conversation engine with intelligent route matching for both numeric menu and natural language inputs; orchestrates Memory and Sentiment systems |
+| **UserMemory.cs** | Stores and manages user preferences, interests, and discussion history (STEP 5) |
+| **SentimentAnalyzer.cs** | Analyzes user input for emotional sentiment and provides sentiment-aware responses (STEP 6) |
+| **TipRepository.cs** | Centralized repository of cybersecurity tips organized by topic |
 | **UIHelper.cs** | Centralized UI library providing colored output, typing animations, ASCII art display, and loading sequences |
 | **InputHelper.cs** | Input validation and processing (foundation for future enhancement) |
 | **Audio/** | Directory containing WAV files for audio greetings |
@@ -144,7 +203,7 @@ dotnet run
 1. The application will display a loading sequence and ASCII art banner
 2. A welcome audio greeting will play (if available)
 3. Enter your name when prompted
-4. Select a topic by number (1-5) or type a keyword (e.g., "phishing", "passwords")
+4. Select a topic by number (1-10) or type a keyword (e.g., "phishing", "passwords")
 5. Type "help" for a list of all available commands
 6. Type "exit" or "quit" to end the session
 
@@ -160,11 +219,15 @@ dotnet run
 ╠════════════════════════════════════════════════════════════╣
 ║  1. Phishing Attacks   | 2. Strong Passwords               ║
 ║  3. Two-Factor Auth    | 4. Data Privacy                   ║
-║  5. Secure Browsing    | 0. Exit                           ║
+║  5. Secure Browsing    | 6. Ransomware                     ║
+║  7. Social Engineering | 8. Patch Management               ║
+║  9. Public Wi-Fi Safety| 10. Password Managers             ║
+║  0. Exit               |                                   ║
 ╠════════════════════════════════════════════════════════════╣
 ║ Or just ask naturally:                                     ║
-║ • "How are you?"  • "What can you help with?"              ║
-║ • "Tell me about phishing"  • "help"                       ║
+║ • "How are you?"             • "What's your purpose?"      ║
+║ • "Tell me about 'phishing', 'privacy', etc"               ║
+║ • "help"                                                   ║
 ╚════════════════════════════════════════════════════════════╝
 
 Your Name, what would you like to know? phishing
@@ -226,7 +289,23 @@ Your Name, what would you like to know? phishing
 
 ---
 
-## Future Improvements (Part 2+)
+## 📦 Version
+
+**Version 1.2 – Intelligent Chatbot Upgrade** ✅
+
+### What's New in Phase 2:
+- ✅ **Memory & Recall System** – Chatbot now remembers user preferences and interests
+- ✅ **Sentiment Detection** – Emotional intelligence with 5 sentiment types (Worried, Frustrated, Curious, Positive, Neutral)
+- ✅ **Personalized Responses** – Adapts tone and content based on detected sentiment and stored preferences
+- ✅ **Smart Topic Continuation** – Remembers context for seamless follow-up interactions
+- ✅ **Enhanced User Experience** – Feeling-aware responses that better support users
+
+**Build Status:** ✅ All features tested and working  
+**Code Quality:** Clean, documented, production-ready
+
+---
+
+## Future Improvements (Phase 3+)
 
 Planned enhancements for future iterations:
 
@@ -311,5 +390,5 @@ For questions, issues, or suggestions, please:
 
 ---
 
-**Last Updated:** April 12, 2026  
-**Status:** Part 1 Complete ✅ | Part 2 (In Planning)
+**Last Updated:** May 6, 2026  
+**Status:** Phase 1 Complete ✅ | Phase 2 Complete ✅ | Phase 3 (In Planning)

@@ -25,6 +25,21 @@ namespace CyberSecurityAwarenessBot.Core
         private readonly InputHelper _inputHelper;
         private readonly string _userName;
         private bool _isRunning;
+        private readonly TipRepository _tipRepository;
+
+        // Conversation state tracking for Step 3 & 4
+        private string? _currentTopic;
+        private int _tipCount;
+
+        // Step 5: Memory and Recall
+        private readonly UserMemory _userMemory;
+
+        // Step 6: Sentiment Detection
+        private readonly SentimentAnalyzer _sentimentAnalyzer;
+
+        // Track sentiment frequency to avoid repetitive responses
+        private string? _lastSentimentResponse;
+        private int _sentimentResponseCount;
 
         /// <summary>
         /// Constructor - Initializes the chatbot with audio path and user's name for personalization.
@@ -35,6 +50,15 @@ namespace CyberSecurityAwarenessBot.Core
             _userName = userName;
             _inputHelper = new InputHelper();
             _isRunning = false;
+            _tipRepository = new TipRepository();
+            _currentTopic = null;
+            _tipCount = 0;
+
+            // Initialize memory and sentiment analysis
+            _userMemory = new UserMemory();
+            _sentimentAnalyzer = new SentimentAnalyzer();
+            _lastSentimentResponse = null;
+            _sentimentResponseCount = 0;
         }
 
         /// <summary>
@@ -84,39 +108,70 @@ namespace CyberSecurityAwarenessBot.Core
         /// Provides both numeric menu options and text-based keywords for conversational input.
         /// Uses cyan color for visual consistency with the title screen.
         /// </summary>
-private void DisplayMenuOptions()
-{
-    UIHelper.PrintColoredLine("\n╔════════════════════════════════════════════════════════════╗", ConsoleColor.Cyan);
-    UIHelper.PrintColoredLine("║             Cybersecurity Topics (Numeric Menu)            ║", ConsoleColor.Cyan);
-    UIHelper.PrintColoredLine("╠════════════════════════════════════════════════════════════╣", ConsoleColor.Cyan);
-    UIHelper.PrintColoredLine("║  1. Phishing Attacks   | 2. Strong Passwords               ║", ConsoleColor.Cyan);
-    UIHelper.PrintColoredLine("║  3. Two-Factor Auth    | 4. Data Privacy                   ║", ConsoleColor.Cyan);
-    UIHelper.PrintColoredLine("║  5. Secure Browsing    | 6. Ransomware                     ║", ConsoleColor.Cyan);
-    UIHelper.PrintColoredLine("║  7. Social Engineering | 8. Patch Management               ║", ConsoleColor.Cyan);
-    UIHelper.PrintColoredLine("║  9. Public Wi-Fi Safety| 10. Password Managers             ║", ConsoleColor.Cyan);
-    UIHelper.PrintColoredLine("║  0. Exit               |                                   ║", ConsoleColor.Cyan);
-    UIHelper.PrintColoredLine("╠════════════════════════════════════════════════════════════╣", ConsoleColor.Cyan);
-    UIHelper.PrintColoredLine("║ Or just ask naturally:                                     ║", ConsoleColor.Cyan);                            
-    UIHelper.PrintColoredLine("║ • \"How are you?\"             • \"What's your purpose?\"      ║", ConsoleColor.Cyan);
-    UIHelper.PrintColoredLine("║ • \"Tell me about 'phishing', 'privacy', etc\"               ║", ConsoleColor.Cyan);
-    UIHelper.PrintColoredLine("║ • \"help\"                                                   ║", ConsoleColor.Cyan);
-    UIHelper.PrintColoredLine("╚════════════════════════════════════════════════════════════╝", ConsoleColor.Cyan);
-}
+        private void DisplayMenuOptions()
+        {
+            UIHelper.PrintColoredLine("\n╔════════════════════════════════════════════════════════════╗", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║             Cybersecurity Topics (Numeric Menu)            ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("╠════════════════════════════════════════════════════════════╣", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║  1. Phishing Attacks   | 2. Strong Passwords               ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║  3. Two-Factor Auth    | 4. Data Privacy                   ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║  5. Secure Browsing    | 6. Ransomware                     ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║  7. Social Engineering | 8. Patch Management               ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║  9. Public Wi-Fi Safety| 10. Password Managers             ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║  0. Exit               |                                   ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("╠════════════════════════════════════════════════════════════╣", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║ Or just ask naturally:                                     ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║ • \"How are you?\"             • \"What's your purpose?\"      ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║ • \"Tell me about 'phishing', 'privacy', etc\"               ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║ • \"Give me a phishing tip\"                                 ║ ", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("║ • \"help\"                                                   ║", ConsoleColor.Cyan);
+            UIHelper.PrintColoredLine("╚════════════════════════════════════════════════════════════╝", ConsoleColor.Cyan);
+        }
 
 
         /// <summary>
         /// HandleUserInput() - Processes user input and routes to appropriate handler.
         /// 
+        /// NOW INCLUDES:
+        /// - Sentiment analysis (Step 6)
+        /// - Interest/preference detection (Step 5)
+        /// - Memory-based personalization (Step 5)
+        /// 
         /// Supports:
-        /// - Numeric menu selections (1-5, 0)
-        /// - Natural language questions (case-insensitive keyword matching)
-        /// - Conversational queries like "How are you?" or "What's your purpose?"
-        /// - Exit commands like "exit", "quit", "bye"
+        /// - Numeric menu selections (1-10, 0)
+        /// - Tip requests with sentiment-aware responses
+        /// - Continuation requests ("another tip", "more", etc.)
+        /// - Conversational queries
+        /// - Interest statements ("I'm interested in privacy", "I like learning about phishing")
+        /// - Exit commands
         /// - Help command
         /// </summary>
         private void HandleUserInput(string input)
         {
             string lowerInput = input.Trim().ToLower();
+
+            // STEP 6: Analyze sentiment BEFORE responding
+            string sentiment = _sentimentAnalyzer.DetectSentiment(lowerInput);
+
+            // STEP 5: Check for interest/preference statements
+            CheckAndStoreInterests(input);
+
+            // Step 3 & 4: Check for tip requests first
+            if (IsTipRequest(lowerInput))
+            {
+                HandleTipRequest(lowerInput, sentiment);
+                return;
+            }
+
+            // Check for "another tip", "more", "give me another" when topic is active
+            if (IsContinuationRequest(lowerInput) && !string.IsNullOrEmpty(_currentTopic))
+            {
+                HandleTipRequest(lowerInput, sentiment);
+                return;
+            }
+
+            // Reset conversation state if switching to different topic
+            ResetConversationState();
 
             // Check for numeric menu selections
             switch (lowerInput)
@@ -126,14 +181,14 @@ private void DisplayMenuOptions()
                 case "phishing attacks":
                 case "tell me about phishing":
                 case "tell me about phishing attacks":
-                    ProvidePhishingEducation();
+                    ProvideEducationWithSentiment("phishing", sentiment);
                     return;
                 case "2":
                 case "password":
                 case "passwords":
                 case "tell me about passwords":
                 case "tell me about strong passwords":
-                    ProvidePasswordEducation();
+                    ProvideEducationWithSentiment("passwords", sentiment);
                     return;
                 case "3":
                 case "2fa":
@@ -142,38 +197,38 @@ private void DisplayMenuOptions()
                 case "authentication":
                 case "tell me about authentication":
                 case "tell me about two factor authentication":
-                    Provide2FAEducation();
+                    ProvideEducationWithSentiment("2fa", sentiment);
                     return;
                 case "4":
                 case "privacy":
                 case "data privacy":
                 case "tell me about data privacy":
                 case "tell me about privacy":
-                    ProvidePrivacyEducation();
+                    ProvideEducationWithSentiment("privacy", sentiment);
                     return;
                 case "5":
                 case "browsing":
                 case "secure browsing":
                 case "tell me about secure browsing":
-                    ProvideBrowsingEducation();
+                    ProvideEducationWithSentiment("browsing", sentiment);
                     return;
                 ///FOR THE ADDITIONAL TOPICS, THEIR CASES ARE AS FOLLOWS:
                 case "6":
                 case "ransomware":
                 case "tell me about ransomware":
-                    ProvideRansomwareEducation();
+                    ProvideEducationWithSentiment("ransomware", sentiment);
                     return;
 
                 case "7":
                 case "social engineering":
                 case "tell me about social engineering":
-                    ProvideSocialEngineeringEducation();
+                    ProvideEducationWithSentiment("social engineering", sentiment);
                     return;
                 case "8":
                 case "software updates":
                 case "patch management":
                 case "tell me about patch management":
-                    ProvidePatchManagementEducation();
+                    ProvideEducationWithSentiment("patch management", sentiment);
                     return;
                 case "9":
                 case "wifi":
@@ -183,13 +238,13 @@ private void DisplayMenuOptions()
                 case "vpn":
                 case "tell me about wifi":
                 case "tell me abou wi-fi":
-                    ProvidePublicWifiEducation();
+                    ProvideEducationWithSentiment("wifi", sentiment);
                     return;
                 case "10":
                 case "password manager":
                 case "passwrord managers":
                 case "tell me about password managers":
-                    ProvidePasswordManagerEducation();
+                    ProvideEducationWithSentiment("password manager", sentiment);
                     return;
                 ///THIS IS WHERE THE ADDITIONAL TOPICS END, SO IF YOU ADD MORE TOPICS, MAKE SURE TO ADD THEIR CASES HERE IN THE SWITCH STATEMENT        
                 case "0":
@@ -230,7 +285,235 @@ private void DisplayMenuOptions()
         }
 
         /// <summary>
-        /// RespondToGreeting() - Responds conversationally to greetings like "How are you?"
+        /// STEP 3 & 4: Tip System and Conversation Flow Helper Methods
+        /// These methods handle random tip selection and conversation state tracking.
+        /// </summary>
+
+        /// <summary>
+        /// IsTipRequest() - Detects if the user is asking for a tip.
+        /// Examples: "give me a phishing tip", "password tip", "any 2fa advice"
+        /// </summary>
+        private bool IsTipRequest(string input)
+        {
+            return (input.Contains("tip") || input.Contains("advice")) &&
+                   (input.Contains("give") || input.Contains("any") || input.Contains("tell") || input.Contains("about"));
+        }
+
+        /// <summary>
+        /// STEP 5 & 6: Memory, Recall, and Sentiment Detection Helper Methods
+        /// These methods handle user memory, interest detection, and sentiment-aware responses.
+        /// </summary>
+
+        /// <summary>
+        /// CheckAndStoreInterests() - Detects interest statements and stores them in memory.
+        /// Looks for patterns like "I'm interested in", "I like learning about", "I care about"
+        /// 
+        /// Examples:
+        /// - "I'm interested in privacy"
+        /// - "I like learning about phishing"
+        /// - "privacy is important to me"
+        /// </summary>
+        private void CheckAndStoreInterests(string input)
+        {
+            string lowerInput = input.ToLower();
+
+            // Interest statement patterns
+            var interestPatterns = new List<string>
+            {
+                "interested in",
+                "interested about",
+                "like learning about",
+                "like to learn about",
+                "care about",
+                "is important to me",
+                "concerned about",
+                "want to know about",
+                "want to learn about"
+            };
+
+            // Check if input contains interest patterns
+            bool hasInterestPattern = interestPatterns.Any(pattern => lowerInput.Contains(pattern));
+
+            if (hasInterestPattern)
+            {
+                // Extract topic from the input
+                string topic = MapKeywordToTopic(input);
+                if (topic != null)
+                {
+                    // Store the interest in memory
+                    _userMemory.AddInterest(topic);
+
+                    // Confirm to user
+                    Console.WriteLine();
+                    UIHelper.DisplayBotMessage($"Great! I'll remember that you're interested in {topic}, {_userName}. 📌", ConsoleColor.Green);
+
+                    // Optionally set as favorite if it's the first interest
+                    if (!_userMemory.HasFavoriteTopic())
+                    {
+                        _userMemory.SetFavoriteTopic(topic);
+                        UIHelper.DisplayBotMessage($"I've made {topic} your primary focus area.", ConsoleColor.Green);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// ProvideEducationWithSentiment() - Routes to education method with sentiment awareness.
+        /// Adds sentiment-aware introduction before full education.
+        /// </summary>
+        private void ProvideEducationWithSentiment(string topic, string sentiment)
+        {
+            // Record the topic as discussed
+            _userMemory.AddDiscussedTopic(topic);
+
+            Console.WriteLine();
+
+            // STEP 6: Add sentiment-aware introduction
+            string intro = GetEducationIntroduction(sentiment, topic);
+            if (!string.IsNullOrEmpty(intro))
+            {
+                UIHelper.DisplayBotMessage(intro, ConsoleColor.Green);
+                Console.WriteLine();
+            }
+
+            // STEP 5: Add memory-based personalization if applicable
+            string memoryPersonalization = GetMemoryPersonalization(topic);
+            if (!string.IsNullOrEmpty(memoryPersonalization))
+            {
+                UIHelper.DisplayBotMessage(memoryPersonalization, ConsoleColor.Cyan);
+                Console.WriteLine();
+            }
+
+            // Call the appropriate education method
+            switch (topic.ToLower())
+            {
+                case "phishing":
+                    ProvidePhishingEducation();
+                    break;
+                case "passwords":
+                    ProvidePasswordEducation();
+                    break;
+                case "2fa":
+                    Provide2FAEducation();
+                    break;
+                case "privacy":
+                    ProvidePrivacyEducation();
+                    break;
+                case "browsing":
+                    ProvideBrowsingEducation();
+                    break;
+                case "ransomware":
+                    ProvideRansomwareEducation();
+                    break;
+                case "social engineering":
+                    ProvideSocialEngineeringEducation();
+                    break;
+                case "patch management":
+                    ProvidePatchManagementEducation();
+                    break;
+                case "wifi":
+                    ProvidePublicWifiEducation();
+                    break;
+                case "password manager":
+                    ProvidePasswordManagerEducation();
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// GetSentimentAwarePrefix() - Returns a sentiment-aware prefix for tips.
+        /// Adjusted tone based on the user's emotional state.
+        /// </summary>
+        private string GetSentimentAwarePrefix(string sentiment, string topic)
+        {
+            // Avoid repeating the same sentiment response too often
+            if (_lastSentimentResponse == sentiment)
+            {
+                _sentimentResponseCount++;
+                if (_sentimentResponseCount > 2)
+                {
+                    return string.Empty;  // Don't repeat the same intro
+                }
+            }
+            else
+            {
+                _lastSentimentResponse = sentiment;
+                _sentimentResponseCount = 0;
+            }
+
+            return sentiment switch
+            {
+                "worried" => $"I understand {topic} might feel overwhelming, but I'm here to help you understand it better. 💚",
+                "frustrated" => $"I know {topic} can seem complicated, but we'll break it down step by step. 😊",
+                "curious" => $"I love your curiosity about {topic}! Let's dive in. 🚀",
+                "positive" => $"Glad to see your enthusiasm about {topic}! 👍",
+                _ => string.Empty
+            };
+        }
+
+        /// <summary>
+        /// GetEducationIntroduction() - Returns a sentiment-aware introduction for full education.
+        /// Sets the tone for the detailed explanation.
+        /// </summary>
+        private string GetEducationIntroduction(string sentiment, string topic)
+        {
+            return sentiment switch
+            {
+                "worried" => $"I understand {topic} might feel concerning. Let me explain this clearly so you feel prepared and confident. 💡",
+                "frustrated" => $"I know {topic} can be confusing. I'll explain this in the simplest way possible. 📚",
+                "curious" => $"Excellent! Let me provide you with detailed insights into {topic}. 🔍",
+                "positive" => $"I'm thrilled to explore {topic} with you in depth! 🎯",
+                _ => string.Empty
+            };
+        }
+
+        /// <summary>
+        /// GetEducationSentimentAwareness() - Returns sentiment-aware encouragement during full education offer.
+        /// Combines sentiment detection with topic interest.
+        /// </summary>
+        private string GetEducationSentimentAwareness(string sentiment, string topic)
+        {
+            return sentiment switch
+            {
+                "worried" => $"Don't worry, {_userName}. The more you understand {topic}, the better equipped you'll be to protect yourself. 🛡️",
+                "frustrated" => $"I know this might feel overwhelming, {_userName}, but once you understand {topic}, it becomes much clearer. 🌟",
+                "curious" => $"Your curiosity is your strength, {_userName}. Let's explore {topic} thoroughly. 🧠",
+                "positive" => $"Your positive attitude will help you master {topic}! Let's get into the details. 🎓",
+                _ => string.Empty
+            };
+        }
+
+        /// <summary>
+        /// GetMemoryPersonalization() - Uses stored memory to personalize education responses.
+        /// References user's interests and previously discussed topics.
+        /// </summary>
+        private string GetMemoryPersonalization(string currentTopic)
+        {
+            var interests = _userMemory.GetInterests();
+
+            // If this is a favorite topic, acknowledge it
+            if (_userMemory.HasFavoriteTopic() && _userMemory.GetFavoriteTopic().Equals(currentTopic, StringComparison.OrdinalIgnoreCase))
+            {
+                return $"Since {currentTopic} is a primary interest for you, let me give you comprehensive coverage. 🎯";
+            }
+
+            // If we've discussed related topics, make a connection
+            var discussedTopics = _userMemory.GetDiscussedTopics();
+            if (discussedTopics.Count > 1)
+            {
+                string previousTopic = discussedTopics[discussedTopics.Count - 2];  // Get the one before current
+                if (!previousTopic.Equals(currentTopic, StringComparison.OrdinalIgnoreCase))
+                {
+                    return $"Building on what you learned about {previousTopic}, {currentTopic} shares some important connections. 🔗";
+                }
+            }
+
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// RespondToGreeting() - Responds conversationally to greetings.
+        /// Enhanced with user memory reference if available.
         /// Uses typing animation and color for a natural, engaging conversation feel.
         /// </summary>
         private void RespondToGreeting()
@@ -243,6 +526,220 @@ private void DisplayMenuOptions()
         }
 
         /// <summary>
+        /// IsContinuationRequest() - Detects if user wants another tip from the same topic.
+        /// Examples: "another tip", "give me another", "more", "one more"
+        /// </summary>
+        private bool IsContinuationRequest(string input)
+        {
+            return (input.Contains("another") || input.Contains("more") || input.Contains("one more")) &&
+                   (input.Contains("tip") || input.Contains("advice") || input.Contains("tips"));
+        }
+
+        /// <summary>
+        /// MapKeywordToTopic() - Extracts the topic from user input.
+        /// Maps keywords like "phishing", "password", "2fa", etc. to their topic names.
+        /// </summary>
+        private string MapKeywordToTopic(string input)
+        {
+            // Define keyword-to-topic mappings
+            var keywordMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "phishing", "phishing" },
+                { "password", "passwords" },
+                { "passwd", "passwords" },
+                { "2fa", "2fa" },
+                { "two-factor", "2fa" },
+                { "two factor", "2fa" },
+                { "authentication", "2fa" },
+                { "auth", "2fa" },
+                { "privacy", "privacy" },
+                { "private", "privacy" },
+                { "browsing", "browsing" },
+                { "browser", "browsing" },
+                { "ransomware", "ransomware" },
+                { "ransom", "ransomware" },
+                { "social engineering", "social engineering" },
+                { "engineer", "social engineering" },
+                { "patch", "patch management" },
+                { "update", "patch management" },
+                { "software", "patch management" },
+                { "wifi", "wifi" },
+                { "wi-fi", "wifi" },
+                { "network", "wifi" },
+                { "public", "wifi" },
+                { "vpn", "wifi" },
+                { "password manager", "password manager" },
+                { "manager", "password manager" },
+                { "vault", "password manager" }
+            };
+
+            // Search for keywords in the input
+            foreach (var kvp in keywordMap)
+            {
+                if (input.Contains(kvp.Key))
+                {
+                    return kvp.Value;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// HandleTipRequest() - Processes tip requests with sentiment awareness (Step 6).
+        /// 
+        /// Enhanced to adjust tone based on user sentiment:
+        /// - Worried: Reassurance added
+        /// - Frustrated: Simplified, encouraging tone
+        /// - Curious: Engaging, deeper insights
+        /// - Neutral/Positive: Standard response
+        /// </summary>
+        private void HandleTipRequest(string input, string sentiment)
+        {
+            string requestedTopic = MapKeywordToTopic(input);
+
+            // Edge case: User asked "another tip" but no topic was set
+            if (IsContinuationRequest(input) && string.IsNullOrEmpty(_currentTopic))
+            {
+                Console.WriteLine();
+                UIHelper.DisplayBotMessage($"I'd like to give you another tip, {_userName}, but I need to know which topic first.", ConsoleColor.Yellow);
+                UIHelper.DisplayBotMessage("Which topic interests you? (e.g., phishing, passwords, 2fa, privacy, browsing, ransomware, social engineering, patch management, wifi, password manager)", ConsoleColor.Yellow);
+                return;
+            }
+
+            // Use current topic if continuing, otherwise use requested topic
+            string? activeTopic = IsContinuationRequest(input) ? _currentTopic : requestedTopic;
+
+            // Edge case: Unknown topic
+            if (activeTopic == null)
+            {
+                Console.WriteLine();
+                UIHelper.DisplayBotMessage($"I'm not sure which topic you're interested in, {_userName}.", ConsoleColor.Yellow);
+                UIHelper.DisplayBotMessage("Try asking about: phishing, passwords, 2fa, privacy, browsing, ransomware, social engineering, patch management, wifi, or password manager.", ConsoleColor.Yellow);
+                return;
+            }
+
+            // Validate topic exists in repository
+            if (!_tipRepository.HasTopic(activeTopic))
+            {
+                Console.WriteLine();
+                UIHelper.DisplayBotMessage($"I don't have tips for '{activeTopic}' yet, {_userName}. Try another topic.", ConsoleColor.Yellow);
+                return;
+            }
+
+            // Get and display a random tip
+            string tip = _tipRepository.GetRandomTip(activeTopic);
+            if (tip != null)
+            {
+                Console.WriteLine();
+
+                // STEP 6: Add sentiment-aware prefix
+                string sentimentPrefix = GetSentimentAwarePrefix(sentiment, activeTopic);
+                if (!string.IsNullOrEmpty(sentimentPrefix))
+                {
+                    UIHelper.DisplayBotMessage(sentimentPrefix, ConsoleColor.Green);
+                }
+
+                UIHelper.DisplayTypingIndicator();
+                UIHelper.DisplayBotMessage(tip, ConsoleColor.Cyan);
+
+                // Update conversation state
+                _currentTopic = activeTopic;
+                _tipCount++;
+
+                // After 3 tips, offer full education
+                if (_tipCount >= 3)
+                {
+                    OfferFullEducation(activeTopic, sentiment);
+                }
+                else
+                {
+                    // Encourage more tips
+                    Console.WriteLine();
+                    UIHelper.DisplayBotMessage($"Want another tip about {activeTopic}? ({3 - _tipCount} more tips before the full breakdown)", ConsoleColor.Green);
+                }
+
+                UIHelper.AutoScroll();
+            }
+            else
+            {
+                Console.WriteLine();
+                UIHelper.DisplayBotMessage($"Sorry, I couldn't retrieve a tip for {activeTopic} right now.", ConsoleColor.Yellow);
+            }
+        }
+
+        /// <summary>
+        /// OfferFullEducation() - Offers and provides full education after 3 tips.
+        /// Transitions from quick tips to comprehensive education.
+        /// Enhanced with sentiment awareness (Step 6).
+        /// </summary>
+        private void OfferFullEducation(string topic, string sentiment)
+        {
+            Console.WriteLine();
+            UIHelper.DisplayBotMessage($"You seem really interested in {topic}, {_userName}! 💡", ConsoleColor.White);
+            Console.WriteLine();
+
+            // STEP 6: Add sentiment-aware encouragement
+            string sentimentAwareness = GetEducationSentimentAwareness(sentiment, topic);
+            if (!string.IsNullOrEmpty(sentimentAwareness))
+            {
+                UIHelper.DisplayBotMessage(sentimentAwareness, ConsoleColor.Green);
+                Console.WriteLine();
+            }
+
+            UIHelper.DisplayBotMessage("Let me give you a more detailed breakdown of this topic so you can really master it.", ConsoleColor.White);
+            Console.WriteLine();
+
+            // Call the appropriate full education method based on topic
+            switch (topic.ToLower())
+            {
+                case "phishing":
+                    ProvidePhishingEducation();
+                    break;
+                case "passwords":
+                    ProvidePasswordEducation();
+                    break;
+                case "2fa":
+                    Provide2FAEducation();
+                    break;
+                case "privacy":
+                    ProvidePrivacyEducation();
+                    break;
+                case "browsing":
+                    ProvideBrowsingEducation();
+                    break;
+                case "ransomware":
+                    ProvideRansomwareEducation();
+                    break;
+                case "social engineering":
+                    ProvideSocialEngineeringEducation();
+                    break;
+                case "patch management":
+                    ProvidePatchManagementEducation();
+                    break;
+                case "wifi":
+                    ProvidePublicWifiEducation();
+                    break;
+                case "password manager":
+                    ProvidePasswordManagerEducation();
+                    break;
+            }
+
+            // Reset conversation state after full education
+            ResetConversationState();
+        }
+
+        /// <summary>
+        /// ResetConversationState() - Resets the conversation state for a new topic.
+        /// Called when switching topics or after providing full education.
+        /// </summary>
+        private void ResetConversationState()
+        {
+            _currentTopic = null;
+            _tipCount = 0;
+        }
+
+        /// <summary>
         /// RespondToPurpose() - Explains the chatbot's purpose when asked.
         /// Uses typing animation and color for a natural response.
         /// </summary>
@@ -251,7 +748,7 @@ private void DisplayMenuOptions()
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
             UIHelper.DisplayBotMessage($"🎯 My purpose, {_userName}, is to educate you about cybersecurity best practices.", ConsoleColor.Yellow);
-            UIHelper.DisplayBotMessage("I can teach you about phishing, passwords, two-factor authentication, data privacy, and secure browsing.", ConsoleColor.Yellow);
+            UIHelper.DisplayBotMessage("I can teach you about phishing, passwords, two-factor authentication, data privacy, and more.", ConsoleColor.Yellow);
             UIHelper.DisplayBotMessage("Together, we'll help protect South African citizens online!", ConsoleColor.Yellow);
             UIHelper.AutoScroll();
         }
@@ -326,7 +823,7 @@ private void DisplayMenuOptions()
         {
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
-            
+
             string[] phishingContent = new string[]
             {
                 "┌────────────── PHISHING ATTACKS EDUCATION ──────────────┐",
@@ -348,7 +845,7 @@ private void DisplayMenuOptions()
                 "│ • Report suspicious emails to your IT department       │",
                 "└────────────────────────────────────────────────────────┘"
             };
-            
+
             foreach (var line in phishingContent)
             {
                 UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
@@ -364,7 +861,7 @@ private void DisplayMenuOptions()
         {
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
-            
+
             string[] passwordContent = new string[]
             {
                 "┌────────── STRONG PASSWORD EDUCATION ───────────────────┐",
@@ -386,7 +883,7 @@ private void DisplayMenuOptions()
                 "│ • Never share your password with anyone                │",
                 "└────────────────────────────────────────────────────────┘"
             };
-            
+
             foreach (var line in passwordContent)
             {
                 UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
@@ -402,7 +899,7 @@ private void DisplayMenuOptions()
         {
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
-            
+
             string[] twoFAContent = new string[]
             {
                 "┌─────── TWO-FACTOR AUTHENTICATION (2FA) ────────────────┐",
@@ -423,7 +920,7 @@ private void DisplayMenuOptions()
                 "│ • Store backup codes in a secure location              │",
                 "└────────────────────────────────────────────────────────┘"
             };
-            
+
             foreach (var line in twoFAContent)
             {
                 UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
@@ -439,7 +936,7 @@ private void DisplayMenuOptions()
         {
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
-            
+
             string[] privacyContent = new string[]
             {
                 "┌──────────── DATA PRIVACY EDUCATION ────────────────────┐",
@@ -462,7 +959,7 @@ private void DisplayMenuOptions()
                 "│ • Read privacy policies before using new services      │",
                 "└────────────────────────────────────────────────────────┘"
             };
-            
+
             foreach (var line in privacyContent)
             {
                 UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
@@ -478,7 +975,7 @@ private void DisplayMenuOptions()
         {
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
-            
+
             string[] browsingContent = new string[]
             {
                 "┌────────── SECURE BROWSING EDUCATION ───────────────────┐",
@@ -501,7 +998,7 @@ private void DisplayMenuOptions()
                 "│ • Consider using a privacy-focused browser             │",
                 "└────────────────────────────────────────────────────────┘"
             };
-            
+
             foreach (var line in browsingContent)
             {
                 UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
@@ -510,22 +1007,22 @@ private void DisplayMenuOptions()
         }
 
         /// ADDITIONAL TOPIC HANDLERS HERE
-        /// these can be added in the future to expand the chatbot's educational content
-        
+        /// THESE WERE ADDED LATER TO EXPAND THE CHATBOT'S EDUCATIONAL CONTENT
+
         /// <summary>
         /// /// ProvideRansomwareEducation() - Educates about ransomware risks and backup strategies.
         /// Uses typing animation and color to display educational content in an engaging way.
         /// </summary>
-        
+
         private void Null()
         {
-            
+
         }
         private void ProvideRansomwareEducation()
         {
             Console.WriteLine();
             UIHelper.DisplayTypingIndicator();
-            
+
             string[] ransomwareContent = new string[]
             {
         "┌───────── RANSOMWARE & BACKUP STRATEGIES ───────────────┐",
@@ -551,25 +1048,25 @@ private void DisplayMenuOptions()
         "│ • 1 copy stored off-site                               │",
         "└────────────────────────────────────────────────────────┘"
     };
-    
-    foreach (var line in ransomwareContent)
-    {
-        UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
-    }
-    UIHelper.AutoScroll();
-}
 
-/// <summary>
-/// ProvideSocialEngineeringEducation() - Educates about social engineering attacks beyond phishing.
-/// Uses typing animation and color to display educational content in an engaging way.
-/// </summary>
-private void ProvideSocialEngineeringEducation()
-{
-    Console.WriteLine();
-    UIHelper.DisplayTypingIndicator();
-    
-    string[] socialEngineeringContent = new string[]
-    {
+            foreach (var line in ransomwareContent)
+            {
+                UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
+            }
+            UIHelper.AutoScroll();
+        }
+
+        /// <summary>
+        /// ProvideSocialEngineeringEducation() - Educates about social engineering attacks beyond phishing.
+        /// Uses typing animation and color to display educational content in an engaging way.
+        /// </summary>
+        private void ProvideSocialEngineeringEducation()
+        {
+            Console.WriteLine();
+            UIHelper.DisplayTypingIndicator();
+
+            string[] socialEngineeringContent = new string[]
+            {
         "┌─────── SOCIAL ENGINEERING (BEYOND PHISHING) ────────────┐",
         $"│ User: {_userName.PadRight(48)}  │",
         "├─────────────────────────────────────────────────────────┤",
@@ -589,26 +1086,26 @@ private void ProvideSocialEngineeringEducation()
         "│ • Be skeptical of urgent or threatening language        │",
         "│ • Report suspicious contact to security team            │",
         "└─────────────────────────────────────────────────────────┘"
-    };
-    
-    foreach (var line in socialEngineeringContent)
-    {
-        UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
-    }
-    UIHelper.AutoScroll();
-}
+            };
 
-/// <summary>
-/// ProvidePatchManagementEducation() - Educates about software updates and patch management.
-/// Uses typing animation and color to display educational content in an engaging way.
-/// </summary>
-private void ProvidePatchManagementEducation()
-{
-    Console.WriteLine();
-    UIHelper.DisplayTypingIndicator();
-    
-    string[] patchContent = new string[]
-    {
+            foreach (var line in socialEngineeringContent)
+            {
+                UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
+            }
+            UIHelper.AutoScroll();
+        }
+
+        /// <summary>
+        /// ProvidePatchManagementEducation() - Educates about software updates and patch management.
+        /// Uses typing animation and color to display educational content in an engaging way.
+        /// </summary>
+        private void ProvidePatchManagementEducation()
+        {
+            Console.WriteLine();
+            UIHelper.DisplayTypingIndicator();
+
+            string[] patchContent = new string[]
+            {
         "┌───── SOFTWARE UPDATES & PATCH MANAGEMENT ──────────────┐",
         $"│ User: {_userName.PadRight(48)} │",
         "├────────────────────────────────────────────────────────┤",
@@ -628,26 +1125,26 @@ private void ProvidePatchManagementEducation()
         "│ • Remove unsupported software (e.g., Win 7)            │",
         "│ • Use a vulnerability scanner for businesses           │",
         "└────────────────────────────────────────────────────────┘"
-    };
-    
-    foreach (var line in patchContent)
-    {
-        UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
-    }
-    UIHelper.AutoScroll();
-}
+            };
 
-/// <summary>
-/// ProvidePublicWifiEducation() - Educates about public Wi-Fi risks and VPNs.
-/// Uses typing animation and color to display educational content in an engaging way.
-/// </summary>
-private void ProvidePublicWifiEducation()
-{
-    Console.WriteLine();
-    UIHelper.DisplayTypingIndicator();
-    
-    string[] wifiContent = new string[]
-    {
+            foreach (var line in patchContent)
+            {
+                UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
+            }
+            UIHelper.AutoScroll();
+        }
+
+        /// <summary>
+        /// ProvidePublicWifiEducation() - Educates about public Wi-Fi risks and VPNs.
+        /// Uses typing animation and color to display educational content in an engaging way.
+        /// </summary>
+        private void ProvidePublicWifiEducation()
+        {
+            Console.WriteLine();
+            UIHelper.DisplayTypingIndicator();
+
+            string[] wifiContent = new string[]
+            {
         "┌────────── PUBLIC WI-FI RISKS & VPNS ───────────────────┐",
         $"│ User: {_userName.PadRight(48)} │",
         "├────────────────────────────────────────────────────────┤",
@@ -668,26 +1165,26 @@ private void ProvidePublicWifiEducation()
         "│ • Use mobile hotspot instead of public Wi‑Fi           │",
         "│ • Turn off file sharing and AirDrop                    │",
         "└────────────────────────────────────────────────────────┘"
-    };
-    
-    foreach (var line in wifiContent)
-    {
-        UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
-    }
-    UIHelper.AutoScroll();
-}
+            };
 
-/// <summary>
-/// ProvidePasswordManagerEducation() - Educates about using password managers.
-/// Uses typing animation and color to display educational content in an engaging way.
-/// </summary>
-private void ProvidePasswordManagerEducation()
-{
-    Console.WriteLine();
-    UIHelper.DisplayTypingIndicator();
-    
-    string[] managerContent = new string[]
-    {
+            foreach (var line in wifiContent)
+            {
+                UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
+            }
+            UIHelper.AutoScroll();
+        }
+
+        /// <summary>
+        /// ProvidePasswordManagerEducation() - Educates about using password managers.
+        /// Uses typing animation and color to display educational content in an engaging way.
+        /// </summary>
+        private void ProvidePasswordManagerEducation()
+        {
+            Console.WriteLine();
+            UIHelper.DisplayTypingIndicator();
+
+            string[] managerContent = new string[]
+            {
         "┌─────────────── PASSWORD MANAGERS ─────────────────────┐",
         $"│ User: {_userName.PadRight(48)}│",
         "├───────────────────────────────────────────────────────┤",
@@ -709,17 +1206,334 @@ private void ProvidePasswordManagerEducation()
         "│ • Never store master password digitally               │",
         "│ • Regularly back up the encrypted vault               │",
         "└───────────────────────────────────────────────────────┘"
-    };
-    
-    foreach (var line in managerContent)
-    {
-        UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
-    }
-    UIHelper.AutoScroll();
-}
+            };
 
-///ADDIONAL TOPIC HANDLERS END
-/// These additional handlers can be called from HandleUserInput() by adding new cases for keywords like "ransomware", "social engineering", "patch management", "public wifi", and "password manager".
+            foreach (var line in managerContent)
+            {
+                UIHelper.DisplayBotMessage(line, ConsoleColor.Yellow);
+            }
+            UIHelper.AutoScroll();
+        }
+
+        ///ADDIONAL TOPIC HANDLERS END
+        /// These additional handlers can be called from HandleUserInput() by adding new cases for keywords like "ransomware", "social engineering", "patch management", "public wifi", and "password manager".
+
+        /// <summary>
+        /// ProcessMessage - Public method for GUI integration.
+        /// Processes user input and returns a response string without printing to console.
+        /// 
+        /// This method:
+        /// - Analyzes sentiment of the input
+        /// - Checks memory and interests
+        /// - Routes to appropriate topic handler
+        /// - Returns response as a string (ideal for GUI)
+        /// </summary>
+        public string ProcessMessage(string userInput)
+        {
+            if (string.IsNullOrWhiteSpace(userInput))
+                return $"I didn't catch that, {_userName}. Please enter something or type 'help' for options.";
+
+            string lowerInput = userInput.Trim().ToLower();
+
+            // Sentiment analysis
+            string sentiment = _sentimentAnalyzer.DetectSentiment(lowerInput);
+
+            // Check for interest statements
+            CheckAndStoreInterests(userInput);
+
+            // Check for exit command
+            if (lowerInput == "0" || lowerInput == "exit" || lowerInput == "quit" || lowerInput == "bye")
+            {
+                return $"Take care, {_userName}! Remember to stay secure online! 🔒";
+            }
+
+            // Check for help command
+            if (lowerInput == "help")
+            {
+                return GetHelpResponse();
+            }
+
+            // Check for tip requests
+            if (IsTipRequest(lowerInput))
+            {
+                return GenerateTipResponse(lowerInput, sentiment);
+            }
+
+            // Check for continuation requests
+            if (IsContinuationRequest(lowerInput) && !string.IsNullOrEmpty(_currentTopic))
+            {
+                return GenerateTipResponse(lowerInput, sentiment);
+            }
+
+            // Route to topic-specific responses
+            return RouteToTopicResponse(lowerInput, sentiment);
+        }
+
+        private string GetHelpResponse()
+        {
+            return $"Hi {_userName}! I'm here to teach you about cybersecurity. You can:\n" +
+                   "• Ask about topics: phishing, passwords, 2FA, privacy, ransomware, etc.\n" +
+                   "• Type numbers 1-10 for specific topics\n" +
+                   "• Ask for tips on any security topic\n" +
+                   "• Say 'exit' to quit\n" +
+                   "What would you like to learn about?";
+        }
+
+        private string RouteToTopicResponse(string lowerInput, string sentiment)
+        {
+            // Route to appropriate topic handler
+            switch (lowerInput)
+            {
+                case "1":
+                case "phishing":
+                case "phishing attacks":
+                    return GetTopicResponse("phishing");
+                case "2":
+                case "password":
+                case "passwords":
+                    return GetTopicResponse("passwords");
+                case "3":
+                case "2fa":
+                case "two-factor":
+                case "two factor":
+                case "authentication":
+                    return GetTopicResponse("2fa");
+                case "4":
+                case "privacy":
+                case "data privacy":
+                    return GetTopicResponse("privacy");
+                case "5":
+                case "browsing":
+                case "secure browsing":
+                    return GetTopicResponse("browsing");
+                case "6":
+                case "ransomware":
+                    return GetTopicResponse("ransomware");
+                case "7":
+                case "social engineering":
+                case "social engineer":
+                    return GetTopicResponse("social_engineering");
+                case "8":
+                case "patch":
+                case "patch management":
+                case "update":
+                case "updates":
+                    return GetTopicResponse("patch_management");
+                case "9":
+                case "wifi":
+                case "public wifi":
+                case "public wi-fi":
+                    return GetTopicResponse("wifi");
+                case "10":
+                case "password manager":
+                case "password managers":
+                    return GetTopicResponse("password_manager");
+
+                // General conversational queries
+                case "hello":
+                case "hi":
+                case "hey":
+                    return $"Hello {_userName}! I'm here to help you learn about cybersecurity. What topic interests you?";
+                case "how are you?":
+                case "how are you":
+                case "what's your purpose?":
+                case "what's your purpose":
+                    return $"I'm doing great! My purpose is to teach you about cybersecurity awareness and best practices. What would you like to know?";
+                default:
+                    return $"That's interesting! Try asking me about: phishing, passwords, 2FA, privacy, ransomware, or type 'help' for more options.";
+            }
+        }
+
+        private string GetTopicResponse(string topic)
+        {
+            _userMemory.AddDiscussedTopic(topic);
+            _currentTopic = topic;
+
+            return topic switch
+            {
+                "phishing" => "PHISHING ATTACKS\n\n" +
+                    "Phishing is a type of social engineering attack where attackers impersonate legitimate organizations to steal credentials or data.\n\n" +
+                    "KEY RISKS:\n" +
+                    "• Email spoofing - emails appear to come from trusted sources\n" +
+                    "• Credential theft - tricking you into entering your password\n" +
+                    "• Malware delivery - links containing malicious software\n\n" +
+                    "PROTECTION TIPS:\n" +
+                    "✓ Check sender email address carefully\n" +
+                    "✓ Look for spelling errors or urgent language\n" +
+                    "✓ Never click links from unknown senders\n" +
+                    "✓ Verify requests by contacting the organization directly\n" +
+                    "✓ Use email filtering and security tools\n" +
+                    "✓ Enable multi-factor authentication",
+
+                "passwords" => "STRONG PASSWORDS\n\n" +
+                    "Strong passwords are your first line of defense against unauthorized access.\n\n" +
+                    "WHAT MAKES A PASSWORD STRONG:\n" +
+                    "• At least 12-16 characters (longer is better)\n" +
+                    "• Mix of uppercase and lowercase letters\n" +
+                    "• Include numbers and special characters (!@#$%^&*)\n" +
+                    "• Avoid dictionary words, names, or birthdates\n" +
+                    "• Unique for each account\n\n" +
+                    "BEST PRACTICES:\n" +
+                    "✓ Use a password manager (1Password, KeePass, etc.)\n" +
+                    "✓ Enable two-factor authentication\n" +
+                    "✓ Change passwords if breached\n" +
+                    "✓ Never share your password\n" +
+                    "✓ Use passphrases for accounts you use frequently",
+
+                "2fa" => "TWO-FACTOR AUTHENTICATION (2FA)\n\n" +
+                    "2FA requires two forms of verification to access your account, making it much harder for attackers to gain access.\n\n" +
+                    "HOW IT WORKS:\n" +
+                    "1. You know (password)\n" +
+                    "2. You have (phone, authenticator app, security key)\n\n" +
+                    "TYPES OF 2FA:\n" +
+                    "• SMS/Text messages (least secure)\n" +
+                    "• Authenticator apps (Google Authenticator, Microsoft Authenticator)\n" +
+                    "• Hardware security keys (YubiKey, most secure)\n" +
+                    "• Biometric (fingerprint, face recognition)\n\n" +
+                    "BENEFITS:\n" +
+                    "✓ Dramatically increases security\n" +
+                    "✓ Protects against phishing\n" +
+                    "✓ Prevents unauthorized access even if password is stolen",
+
+                "privacy" => "DATA PRIVACY\n\n" +
+                    "Protecting your personal data is crucial in the digital age.\n\n" +
+                    "TYPES OF DATA TO PROTECT:\n" +
+                    "• Personal identifiers (name, SSN, DOB)\n" +
+                    "• Financial information (bank accounts, credit cards)\n" +
+                    "• Health records\n" +
+                    "• Online activity and browsing history\n\n" +
+                    "PRIVACY TIPS:\n" +
+                    "✓ Review privacy settings on social media\n" +
+                    "✓ Limit information you share online\n" +
+                    "✓ Use privacy-focused browsers (Firefox, Brave)\n" +
+                    "✓ Use VPNs on public Wi-Fi\n" +
+                    "✓ Check data breaches at haveibeenpwned.com\n" +
+                    "✓ Read privacy policies before sharing data",
+
+                "browsing" => "SECURE BROWSING\n\n" +
+                    "Safe web browsing practices protect you from malware, phishing, and data theft.\n\n" +
+                    "ESSENTIAL PRACTICES:\n" +
+                    "• Look for HTTPS and padlock icon\n" +
+                    "• Keep browser and extensions updated\n" +
+                    "• Use reputable antivirus software\n" +
+                    "• Be cautious with downloads\n\n" +
+                    "AVOID:\n" +
+                    "✗ Clicking suspicious links\n" +
+                    "✗ Downloading from untrusted sites\n" +
+                    "✗ Ignoring security warnings\n" +
+                    "✗ Installing unknown browser extensions\n\n" +
+                    "RECOMMENDED:\n" +
+                    "✓ Use browser security extensions\n" +
+                    "✓ Clear cookies and cache regularly\n" +
+                    "✓ Disable JavaScript on untrusted sites\n" +
+                    "✓ Use private/incognito browsing mode",
+
+                "ransomware" => "RANSOMWARE\n\n" +
+                    "Ransomware encrypts your files and demands payment for decryption. Prevention is critical.\n\n" +
+                    "COMMON DELIVERY METHODS:\n" +
+                    "• Malicious email attachments\n" +
+                    "• Compromised websites\n" +
+                    "• Unpatched software vulnerabilities\n" +
+                    "• Remote desktop access (RDP)\n\n" +
+                    "PROTECTION STRATEGIES:\n" +
+                    "✓ Keep backups offline and regularly updated\n" +
+                    "✓ Update software and OS immediately\n" +
+                    "✓ Use multi-factor authentication\n" +
+                    "✓ Train staff on phishing awareness\n" +
+                    "✓ Use reputable security software\n" +
+                    "✓ Restrict file sharing permissions",
+
+                "social_engineering" => "SOCIAL ENGINEERING\n\n" +
+                    "Social engineering exploits human psychology to manipulate people into divulging confidential information.\n\n" +
+                    "COMMON TACTICS:\n" +
+                    "• Pretexting - creating a fabricated scenario\n" +
+                    "• Baiting - offering something enticing\n" +
+                    "• Tailgating - following someone into secure areas\n" +
+                    "• Phishing - fraudulent emails\n" +
+                    "• Vishing - voice phishing over phone\n\n" +
+                    "DEFENSE MEASURES:\n" +
+                    "✓ Verify identities before sharing information\n" +
+                    "✓ Be skeptical of unsolicited requests\n" +
+                    "✓ Don't trust caller ID alone\n" +
+                    "✓ Follow organizational security policies\n" +
+                    "✓ Report suspicious activity\n" +
+                    "✓ Stay educated on tactics",
+
+                "patch_management" => "SOFTWARE UPDATES & PATCH MANAGEMENT\n\n" +
+                    "Updates fix security vulnerabilities that attackers exploit to compromise systems.\n\n" +
+                    "WHY UPDATES MATTER:\n" +
+                    "• Fix security vulnerabilities\n" +
+                    "• Prevent zero-day exploits\n" +
+                    "• Improve stability and performance\n" +
+                    "• Protect against known malware\n\n" +
+                    "BEST PRACTICES:\n" +
+                    "✓ Enable automatic updates\n" +
+                    "✓ Update OS regularly\n" +
+                    "✓ Update browsers and plugins\n" +
+                    "✓ Remove unsupported software\n" +
+                    "✓ Test updates on non-critical systems first\n" +
+                    "✓ Schedule updates during low-usage times",
+
+                "wifi" => "PUBLIC WI-FI SAFETY\n\n" +
+                    "Public Wi-Fi networks pose significant security risks due to lack of encryption and authentication.\n\n" +
+                    "RISKS:\n" +
+                    "• Man-in-the-middle attacks\n" +
+                    "• Packet sniffing - intercepting data\n" +
+                    "• Rogue hotspots - fake Wi-Fi networks\n" +
+                    "• Malware distribution\n\n" +
+                    "PROTECTION METHODS:\n" +
+                    "✓ Use a VPN (Virtual Private Network)\n" +
+                    "✓ Avoid sensitive transactions on public Wi-Fi\n" +
+                    "✓ Disable file sharing\n" +
+                    "✓ Turn off auto-connect features\n" +
+                    "✓ Use HTTPS websites only\n" +
+                    "✓ Use your phone's hotspot instead",
+
+                "password_manager" => "PASSWORD MANAGERS\n\n" +
+                    "Password managers securely store and generate strong passwords for all your accounts.\n\n" +
+                    "HOW THEY HELP:\n" +
+                    "• Generate strong, unique passwords\n" +
+                    "• Eliminate password reuse\n" +
+                    "• Auto-fill login information securely\n" +
+                    "• Sync across devices\n\n" +
+                    "POPULAR OPTIONS:\n" +
+                    "• Bitwarden (free, open-source)\n" +
+                    "• 1Password (premium, user-friendly)\n" +
+                    "• KeePass (local, self-hosted)\n" +
+                    "• Apple/Google built-in managers\n\n" +
+                    "BEST PRACTICES:\n" +
+                    "✓ Use a strong master password\n" +
+                    "✓ Enable 2FA on your password manager\n" +
+                    "✓ Never store master password digitally\n" +
+                    "✓ Regularly backup encrypted vault",
+
+                _ => $"I can help you with {topic}. Would you like more details?"
+            };
+        }
+
+        private string GenerateTipResponse(string userInput, string sentiment)
+        {
+            // Use current topic or pick a random one
+            string topic = _currentTopic ?? "phishing";
+
+            // Get a random tip for the topic
+            string tip = _tipRepository.GetRandomTip(topic);
+
+            string tipMessage = $"💡 TIP: {tip}";
+            if (sentiment != "neutral")
+            {
+                tipMessage = (sentiment switch
+                {
+                    "worried" => $"I understand this might feel overwhelming, but here's a helpful tip:\n\n",
+                    "frustrated" => $"Don't worry, security doesn't have to be complicated. Here's a tip:\n\n",
+                    "curious" => $"Great question! Here's an interesting tip:\n\n",
+                    "positive" => $"Glad to see your enthusiasm! Here's a tip:\n\n",
+                    _ => ""
+                }) + tipMessage;
+            }
+
+            return tipMessage;
+        }
 
     }
 }

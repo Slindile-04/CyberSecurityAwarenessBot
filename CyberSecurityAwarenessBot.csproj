@@ -1,21 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <StartupObject>CyberSecurityAwarenessBot.Program</StartupObject>
+    <RootNamespace>CyberSecurityAwarenessBot</RootNamespace>
   </PropertyGroup>
 
-  <!-- System.Windows.Extensions for SoundPlayer support -->
+  <!-- WinForms and GUI Support -->
   <ItemGroup>
+    <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
     <PackageReference Include="System.Windows.Extensions" Version="8.0.0" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
   </ItemGroup>
-
-  <!-- Future GUI Support: Uncomment for Windows Forms or WPF
-  <ItemGroup>
-    <Reference Include="System.Windows.Forms" />
-  </ItemGroup>
-  -->
 
 </Project>
