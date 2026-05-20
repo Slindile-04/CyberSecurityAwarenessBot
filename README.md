@@ -1,394 +1,300 @@
 # CyberSecurityAwarenessBot
 
-A **Cybersecurity Awareness Chatbot** designed to educate South African citizens about common online threats and safe online practices.
-
-*Module: PROG6221 – Programming 2A*  
-*Language: C#*  
-*Application Type: .NET Console Application*
+**An intelligent, conversational cybersecurity awareness chatbot designed to educate users about online threats and safe digital practices.**
 
 ---
 
-## Project Overview
+## 📋 Project Overview
 
-The **CyberSecurityAwarenessBot** is an interactive console application that serves as an educational tool for teaching users about cybersecurity best practices and online safety. The chatbot provides personalized, conversational guidance on critical security topics that affect South African citizens.
+The **CyberSecurityAwarenessBot** is an interactive chatbot application that provides personalized cybersecurity education through natural conversation. Currently running as a terminal application with a GUI (Windows Forms) under development.
 
-**Purpose:**
+### Purpose
 - Educate users about common cybersecurity threats
-- Promote safe online practices
+- Promote safe online practices  
 - Provide accessible, engaging security awareness training
 - Create a foundation for extended cybersecurity education platforms
 
-**Target Topics:**
+### Target Audience
+Users interested in learning about:
 - Phishing attacks and social engineering
 - Strong password creation and management
 - Two-factor authentication (2FA)
 - Data privacy and protection
 - Secure browsing practices
+- Ransomware threats
+- Patch management
+- Wi-Fi security
+- And more...
 
 ---
 
 ## 🚀 Features
 
-### Core Features ✅
+### Core Chatbot Features ✅
+- **Keyword Recognition** – Understands natural language queries about cybersecurity topics
+- **Intelligent Responses** – Delivers varied, non-repetitive tips and advice
+- **Conversation Flow** – Maintains context across multi-turn interactions
+- **Memory & Recall System** – Stores and recalls user interests and preferences
+- **Sentiment Detection** – Detects emotions (Worried, Curious, Frustrated, Positive) and adapts tone accordingly
+- **Tip Progression** – Delivers 7 tips per topic without repetition
+- **Error Handling** – Gracefully handles unexpected input
 
-#### Phase 1: Foundation ✅
-- **Keyword Recognition** – Identifies cybersecurity topics from natural language
-- **Random Tip Responses** – Delivers varied tips to keep learning engaging
-- **Conversation Flow with Topic Tracking** – Maintains context across interactions
+### UI/UX Features ✅
+- **Console Application** – Terminal-based interface with color coding and emoji support
+- **ASCII Title Screen** – Cybersecurity-themed animated banner at startup
+- **Audio Integration** – WAV audio greetings on program startup
+- **Typing Effects** – Character-by-character animation for natural conversation feel
+- **User Personalization** – All responses include user's name for engagement
+- **Input Validation** – Helpful suggestions for unexpected input
 
-#### Phase 2: Intelligence & Personalization ✅
-- **Memory & Recall System** – Stores user preferences and discussion history for personalized responses
-- **Sentiment Detection** – Detects user emotions (Worried, Curious, Frustrated) and adapts tone accordingly
-
-### Part 1 Implementation Details ✅
-
-The following UI and interaction features have been successfully implemented:
-
-#### 🎨 **Visual Design**
-- **ASCII Title Screen** – Cybersecurity-themed ASCII art banner displayed at startup with line-by-line animation
-- **Console Color Styling** – Color-coded messages for different response types (green for success, cyan for menus, yellow for bot responses)
-- **Emoji Support** – Unicode emoji integration (🤖, 🔐, 📚, etc.) for enhanced visual communication
-- **Professional Layout** – Formatted boxes and borders for structured information display
-
-#### 🎵 **Audio Integration**
-- **Audio Greeting** – Welcome message played as a WAV file at program startup
-- **Error Gracefully Handling** – Application continues normally if audio file is unavailable
-
-#### 💬 **Interactive Conversation**
-- **Dual Input Modes** – Supports both numeric menu selection (1-5) and natural language keywords
-- **Conversational Responses** – Understands natural language queries like "How are you?" and "What can you help with?"
-- **Topic Selection Menu** – Display of available cybersecurity topics in a user-friendly format
-- **Personalized Responses** – All bot responses include the user's name for engaging, personalized interaction
-
-#### ⌨️ **User Experience**
-- **Typing Effect** – Character-by-character animation for bot responses, creating a natural conversational feel
-- **Typing Indicator** – Shows "🤖 Bot is typing..." feedback while processing user input
-- **Input Validation and Handling** – Graceful handling of unexpected input with helpful suggestions
-- **Auto-Scroll Functionality** – Console automatically scrolls to show latest messages
-- **Loading Sequence** – Animated startup sequence that simulates system initialization
-
-#### 🔒 **Educational Content**
-- **Structured Educational Modules** – Five comprehensive cybersecurity topics with formatted content boxes
-- **Red Flags and Prevention Tips** – Each topic includes warning signs and mitigation strategies
-- **Professional Formatting** – Content presented in easy-to-read boxes with user context
+### Future Features 🚧
+- **Windows Forms GUI** – Full graphical interface (in development)
+- **GUI Animations** – Smooth transitions and visual effects
+- **Enhanced AI Flow** – Smarter conversation patterns
+- **Persistent Memory** – Save/load user preferences across sessions
+- **Conversation History** – Display previous discussions
+- **Smart Recommendations** – Suggest related topics based on interests
 
 ---
 
-## Technologies Used
+## 💻 Technologies Used
 
-- **Language:** C# 12
-- **.NET Framework:** .NET 8.0
-- **Console Application:** System.Console
-- **Audio Playback:** System.Media.SoundPlayer
-- **File I/O:** System.IO for path and file management
-- **Text Encoding:** UTF-8 for emoji and Unicode support
-- **Version Control:** Git / GitHub
-- **IDE:** Visual Studio Code
-
----
-
-## 🧠 Advanced Features (Phase 2)
-
-### Memory & Recall System
-
-The chatbot now intelligently remembers user information to provide personalized experiences:
-
-- **Favorite Topic Tracking** – Automatically identifies and stores the user's primary interest
-- **Interest Management** – Records all topics the user expresses interest in
-- **Discussion History** – Tracks all topics discussed during the session for context-awareness
-- **Personalized Responses** – References stored information to connect topics and provide relevant advice
-  - Example: "Since privacy is important to you, here's additional context on how it relates to password security."
-
-**Use Case:** When a user asks "Give me another tip," the chatbot remembers the topic they were discussing and provides a new tip on that same topic without requiring them to specify it again.
-
-### Sentiment Detection System
-
-The chatbot analyzes user input to understand emotional state and adapts responses accordingly:
-
-**Detected Sentiments:**
-- 😟 **Worried** – User expresses fear or concern (keywords: scared, worried, unsafe, concerned)
-  - *Bot Response Tone:* Reassuring and empowering
-  - *Example:* "I understand phishing might feel concerning, but you're taking the right steps by learning."
-
-- 😤 **Frustrated** – User expresses confusion or difficulty (keywords: confused, hard, overwhelm, frustrated)
-  - *Bot Response Tone:* Simplifying and supportive
-  - *Example:* "I know this might feel overwhelming, but let me break it down in a simpler way."
-
-- 🤔 **Curious** – User shows interest in learning (keywords: how, why, interested, want to learn)
-  - *Bot Response Tone:* Encouraging and engaging
-  - *Example:* "I love your curiosity! Let's dive deeper into this topic."
-
-- 😊 **Positive** – User expresses satisfaction or gratitude (keywords: great, awesome, appreciate, helpful)
-  - *Bot Response Tone:* Enthusiastic and affirming
-  - *Example:* "I'm thrilled to explore this with you!"
-
-- 💬 **Neutral** – No specific sentiment detected
-  - *Bot Response Tone:* Standard professional response
-
-**Practical Benefit:** Users receive emotionally intelligent responses that feel more natural and supportive, improving engagement and learning outcomes.
+| Component | Technology |
+|-----------|-----------|
+| **Language** | C# 12 |
+| **.NET Framework** | .NET 8.0 |
+| **Target Framework** | net8.0-windows |
+| **UI Framework** | Windows Forms (WinForms) |
+| **Audio** | System.Media.SoundPlayer |
+| **Console** | System.Console |
+| **Version Control** | Git / GitHub |
+| **IDE** | Visual Studio Code |
 
 ---
 
-## 🆕 Updated Project Structure
+## 🏗️ Architecture Overview
+
+### Application Structure
 
 ```
-CyberSecurityAwarenessBot/
-├── src/
-│   ├── Program.cs                 # Entry point and startup orchestration
-│   ├── Chatbot.cs                 # Core chatbot logic and conversation engine
-│   ├── UserMemory.cs              # Memory & Recall system (STEP 5)
-│   ├── SentimentAnalyzer.cs       # Sentiment Detection system (STEP 6)
-│   ├── TipRepository.cs           # Centralized tip storage and retrieval
-│   └── Helpers/
-│       ├── UIHelper.cs            # UI utilities (colors, animations, typing effects)
-│       └── InputHelper.cs         # Input validation and processing
-├── Audio/
-│   └── [Audio greeting files]     # WAV files for audio greetings
-├── bin/                           # Compiled binaries (Debug/Release)
-├── obj/                           # Build intermediate files
-├── CyberSecurityAwarenessBot.csproj
-├── CyberSecurityAwarenessBot.sln
-└── README.md                      # This file
+src/
+├── UI/
+│   └── MainForm.cs                   ← Windows Forms GUI (future)
+├── Chatbot.cs                        ← Core conversation engine
+├── Program.cs                        ← Application entry point
+├── Services/
+│   ├── ConversationManager.cs        ← Context & state tracking
+│   ├── TipTracker.cs                 ← Tip selection & progression
+│   ├── MemoryService.cs              ← User memory management
+│   ├── SentimentAnalyzer.cs          ← Emotion detection
+│   ├── VoiceService.cs               ← Audio playback
+│   └── ThemeService.cs               ← Theme definitions
+├── Models/
+│   ├── ChatMessage.cs                ← Message data structure
+│   ├── SecurityTip.cs                ← Tip data structure
+│   └── User.cs                       ← User data structure
+├── Helpers/
+│   ├── InputHelper.cs                ← Input parsing utilities
+│   └── UIHelper.cs                   ← Console UI utilities
+└── TipRepository.cs                  ← Central tip storage (70 tips)
 ```
 
-### Key Files Explained
+### Layer Separation
 
-| File | Purpose |
-|------|---------|
-| **Program.cs** | Entry point that orchestrates startup sequence: loading animation → ASCII title → audio greeting → user name collection → chatbot initialization |
-| **Chatbot.cs** | Core conversation engine with intelligent route matching for both numeric menu and natural language inputs; orchestrates Memory and Sentiment systems |
-| **UserMemory.cs** | Stores and manages user preferences, interests, and discussion history (STEP 5) |
-| **SentimentAnalyzer.cs** | Analyzes user input for emotional sentiment and provides sentiment-aware responses (STEP 6) |
-| **TipRepository.cs** | Centralized repository of cybersecurity tips organized by topic |
-| **UIHelper.cs** | Centralized UI library providing colored output, typing animations, ASCII art display, and loading sequences |
-| **InputHelper.cs** | Input validation and processing (foundation for future enhancement) |
-| **Audio/** | Directory containing WAV files for audio greetings |
+| Layer | Purpose | Files |
+|-------|---------|-------|
+| **UI** | Display & input handling | MainForm.cs |
+| **Logic** | Conversation & decision making | Chatbot.cs, Services/ |
+| **Data** | Tip storage & user info | TipRepository.cs, Models/ |
+| **Utilities** | Helper functions | Helpers/ |
+
+### Key Services
+
+**ConversationManager** – Tracks conversation context:
+- Current/previous topics
+- Sentiment history  
+- User intent (AskingTip, RequestingEducation, etc.)
+- Context for follow-up detection
+
+**TipTracker** – Manages tip delivery:
+- Prevents duplicate tips
+- Tracks 7-tip progression per topic
+- Provides progress feedback
+
+**SentimentAnalyzer** – Detects emotions via keyword analysis:
+- Worried: Provides reassuring responses
+- Frustrated: Simplifies explanations  
+- Curious: Engages with detailed content
+- Positive: Celebrates enthusiasm
 
 ---
 
-## How to Run the Project
+## 📊 Current Status
+
+### ✅ Completed
+- Terminal chatbot fully functional
+- All 4 improvement issues resolved
+- Memory recall system working
+- Sentiment detection integrated
+- Tip progression system implemented
+- Flexible conversation patterns supported
+- Project compiles successfully (0 errors, 37 non-blocking warnings)
+
+### 🚧 In Development
+- Windows Forms GUI integration
+- Persistent data storage
+- Enhanced animations
+
+---
+
+## 🛠️ Installation & Running
 
 ### Prerequisites
-- .NET SDK 8.0 or later installed
-- Git (for cloning the repository)
+- **.NET SDK 8.0** or later ([download](https://dotnet.microsoft.com/download))
+- **Git** for version control
+- **Visual Studio Code** (optional, or any C# IDE)
 
-### Installation & Execution
-
-#### Option 1: Using the Terminal
+### Clone the Repository
 ```bash
-# Clone the repository
-git clone https://github.com/Slindile-04/CyberSecurityAwarenessBot.git
+git clone https://github.com/yourusername/CyberSecurityAwarenessBot.git
 cd CyberSecurityAwarenessBot
+```
 
-# Run the application
+### Build the Project
+```bash
+dotnet build
+```
+
+### Run the Application
+
+**Terminal Version (Current):**
+```bash
 dotnet run --project CyberSecurityAwarenessBot.csproj
 ```
 
-#### Option 2: Using Visual Studio Code
-1. Clone the repository: `git clone https://github.com/Slindile-04/CyberSecurityAwarenessBot.git`
-2. Open the folder in VS Code: `code CyberSecurityAwarenessBot`
-3. Open the terminal in VS Code (Ctrl + `)
-4. Run: `dotnet run`
-
-#### Option 3: Build and Run
+**Release Build:**
 ```bash
-# Build the project
-dotnet build
-
-# Run the compiled application
-dotnet run
+dotnet build --configuration Release
+dotnet run --configuration Release
 ```
 
-### First Use
-1. The application will display a loading sequence and ASCII art banner
-2. A welcome audio greeting will play (if available)
-3. Enter your name when prompted
-4. Select a topic by number (1-10) or type a keyword (e.g., "phishing", "passwords")
-5. Type "help" for a list of all available commands
-6. Type "exit" or "quit" to end the session
-
----
-
-## Usage Examples
-
-### Example Interaction
-
-```
-╔════════════════════════════════════════════════════════════╗
-║             Cybersecurity Topics (Numeric Menu)            ║
-╠════════════════════════════════════════════════════════════╣
-║  1. Phishing Attacks   | 2. Strong Passwords               ║
-║  3. Two-Factor Auth    | 4. Data Privacy                   ║
-║  5. Secure Browsing    | 6. Ransomware                     ║
-║  7. Social Engineering | 8. Patch Management               ║
-║  9. Public Wi-Fi Safety| 10. Password Managers             ║
-║  0. Exit               |                                   ║
-╠════════════════════════════════════════════════════════════╣
-║ Or just ask naturally:                                     ║
-║ • "How are you?"             • "What's your purpose?"      ║
-║ • "Tell me about 'phishing', 'privacy', etc"               ║
-║ • "help"                                                   ║
-╚════════════════════════════════════════════════════════════╝
-
-Your Name, what would you like to know? phishing
-
-🤖 Bot is typing...
-
-┌────────────── PHISHING ATTACKS EDUCATION ──────────────┐
-│ User: [Your Name]                                      │
-├────────────────────────────────────────────────────────┤
-│ Phishing is a social engineering attack where attackers│
-│ impersonate trusted entities to steal sensitive info.  │
-│                                                        │
-│ RED FLAGS:                                             │
-│ • Urgent requests for passwords or personal info       │
-│ • Suspicious sender email addresses                    │
-│ • Links that don't match the displayed text            │
-│ • Grammar and spelling errors                          │
-└────────────────────────────────────────────────────────┘
+### Run Tests
+```bash
+dotnet test
 ```
 
-### Natural Language Interactions
-- **Greeting:** "How are you?" → Bot responds conversationally
-- **Purpose:** "What can you help me with?" → Bot explains its purpose
-- **Menu Selection:** "Tell me about passwords" → Shows password education
-- **Exit:** "Goodbye" → Safely exits the application
+---
+
+## 📖 Documentation
+
+- **[DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)** – Architecture guide for developers
+  - Folder structure explanation
+  - File responsibilities  
+  - Development guidelines
+  - How to extend the application
 
 ---
 
-## Architecture & Design Patterns
+## 🎯 Usage Examples
 
-### Key Design Decisions
+### Example 1: Get a Phishing Tip
+```
+User: Tell me about phishing
+Bot: I'd be happy to help! Here's a tip about phishing:
+     🎣 Tip: Always hover over links in emails before clicking to verify the actual URL.
+     Want another tip about phishing?
+```
 
-1. **Separation of Concerns**
-   - Core chatbot logic isolated in `Chatbot.cs`
-   - UI/styling handled by `UIHelper.cs`
-   - Input validation in `InputHelper.cs`
-   - This structure allows easy modification and testing
+### Example 2: Sentiment-Aware Response
+```
+User: I'm worried about password security
+Bot: I understand password security might feel concerning. Let me explain clearly 💡
+     [Provides reassuring, simple explanation]
+```
 
-2. **Relative Path Resolution**
-   - Audio files located using relative paths instead of hardcoded paths
-   - Ensures portability across different machines and environments
-   - Navigates from executable location back to project root
+### Example 3: Follow-up Flexibility
+```
+User: Give me a privacy tip
+Bot: [Provides tip #1]
 
-3. **Graceful Error Handling**
-   - Missing audio files don't crash the application
-   - Invalid inputs receive helpful suggestions
-   - All exceptions are handled with user-friendly messages
+User: Another one  ← Natural follow-up
+Bot: [Provides tip #2 - same topic]
 
-4. **User Engagement**
-   - Multi-sensory startup experience (visual, audio, text)
-   - Personalization through user name collection
-   - Typing animations create natural conversation feel
-   - Color coding helps users parse information quickly
-
-5. **Extensibility**
-   - Adding new educational topics requires only adding new methods
-   - UI styling can be updated in a single location
-   - Helper classes provide foundation for future features
-
----
-
-## 📦 Version
-
-**Version 1.2 – Intelligent Chatbot Upgrade** ✅
-
-### What's New in Phase 2:
-- ✅ **Memory & Recall System** – Chatbot now remembers user preferences and interests
-- ✅ **Sentiment Detection** – Emotional intelligence with 5 sentiment types (Worried, Frustrated, Curious, Positive, Neutral)
-- ✅ **Personalized Responses** – Adapts tone and content based on detected sentiment and stored preferences
-- ✅ **Smart Topic Continuation** – Remembers context for seamless follow-up interactions
-- ✅ **Enhanced User Experience** – Feeling-aware responses that better support users
-
-**Build Status:** ✅ All features tested and working  
-**Code Quality:** Clean, documented, production-ready
+User: Go deeper    ← Deep dive request
+Bot: Let me dive deeper into privacy...
+     [Provides comprehensive education]
+```
 
 ---
 
-## Future Improvements (Phase 3+)
+## 🔄 Versioning
 
-Planned enhancements for future iterations:
+This project uses semantic versioning:
+- **v1.0** – Initial terminal chatbot release
+- **v1.1** – Memory recall improvements  
+- **v2.0** – Windows Forms GUI (planned)
 
-### 🖼️ **GUI Implementation**
-- Migrate from console to graphical interface (Windows Forms or WPF)
-- Multi-window support for side-by-side chatbot interaction
-- Rich text formatting for better content presentation
-
-### 🤖 **Enhanced Chatbot Intelligence**
-- Intent-based response system using natural language processing
-- Machine learning model for improved keyword matching
-- Context-aware responses that remember previous user input
-
-### 📚 **Expanded Cybersecurity Content**
-- Additional security topics (social engineering, malware, ransomware, etc.)
-- Real-world case studies and examples
-- Interactive quizzes to test knowledge
-- Progress tracking and achievement badges
-
-### 💾 **Data Persistence**
-- User profiles and conversation history
-- Learning progress tracking
-- Personalized recommendations based on user interactions
-- Export/download security tips for offline reference
-
-### 🌐 **Multi-Language Support**
-- Localization for South African languages (Zulu, Xhosa, Sotho, etc.)
-- Culturally relevant examples and scenarios
-
-### 📊 **Analytics & Reporting**
-- Track user engagement and learning outcomes
-- Generate reports on most viewed topics
-- Usage statistics for program improvement
+See [GitHub Releases](https://github.com/yourusername/CyberSecurityAwarenessBot/releases) for version history.
 
 ---
 
-## Contributing
+## 🚀 Future Improvements
 
-This is an academic project created as part of PROG6221 coursework. Contributions are welcome!
+### Phase 3: GUI Polish
+- [ ] Modern dark/light theme support
+- [ ] Smooth animations and transitions
+- [ ] Responsive dialog layouts
+- [ ] Icon theming
 
-To contribute:
+### Phase 4: Intelligence
+- [ ] Smarter topic recommendations
+- [ ] Multi-turn conversation patterns
+- [ ] Conversation history persistence
+- [ ] User progress tracking
+
+### Phase 5: Scalability
+- [ ] Additional cybersecurity topics
+- [ ] Admin panel for topic management
+- [ ] User analytics
+- [ ] Multi-language support
+
+---
+
+## 📝 License
+
+This project is provided for educational purposes. See LICENSE file for details.
+
+---
+
+## 👥 Contributing
+
+Contributions are welcome! Please:
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/YourFeature`)
-3. Commit your changes (`git commit -m 'Add YourFeature'`)
-4. Push to the branch (`git push origin feature/YourFeature`)
-5. Open a Pull Request
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Open a pull request
+
+See DEVELOPER_GUIDE.md for development guidelines.
 
 ---
 
-## License
+## 📧 Support
 
-This project is provided as-is for educational purposes as part of the PROG6221 – Programming 2A module.
-
----
-
-## Author
-
-**Slindile**  
-*Student, PROG6221 – Programming 2A*
-
-This CyberSecurityAwarenessBot was created as part of academic coursework to demonstrate:
-- Object-oriented programming principles
-- Console application development
-- User experience and interface design
-- Separation of concerns and code organization
-
----
-
-## Contact & Support
-
-For questions, issues, or suggestions, please:
+For issues, questions, or suggestions:
 - Open an issue on GitHub
-- Contact via: [Your Contact Information]
+- Check [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) for common questions
 
 ---
 
-## Acknowledgments
+## 🎓 Academic Context
 
-- Thanks to the PROG6221 module instructors for the project assignment
-- Special thanks to System.Media.SoundPlayer for easy audio integration
-- Inspiration for cybersecurity awareness from South African cybersecurity best practices
+**Module:** PROG6221 – Programming 2A  
+**Institution:** [Your Institution]  
+**Purpose:** Educational platform for cybersecurity awareness
 
 ---
 
-**Last Updated:** May 6, 2026  
-**Status:** Phase 1 Complete ✅ | Phase 2 Complete ✅ | Phase 3 (In Planning)
+*Last Updated: May 2026*  
+*Built with ❤️ for cybersecurity awareness*
+

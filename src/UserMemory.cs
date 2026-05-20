@@ -22,6 +22,8 @@ namespace CyberSecurityAwarenessBot.Core
     {
         private readonly Dictionary<string, string> _preferences;
         private readonly List<string> _discussedTopics;
+        private readonly List<string> _interestHistory;  // Track when interests are added/updated
+        private DateTime _lastInterestUpdate;
 
         /// <summary>
         /// Constructor - Initializes memory storage structures.
@@ -30,6 +32,8 @@ namespace CyberSecurityAwarenessBot.Core
         {
             _preferences = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             _discussedTopics = new List<string>();
+            _interestHistory = new List<string>();
+            _lastInterestUpdate = DateTime.MinValue;
         }
 
         /// <summary>
@@ -177,7 +181,7 @@ namespace CyberSecurityAwarenessBot.Core
         /// <summary>
         /// AddInterest() - Records a user interest.
         /// Interests are stored as a comma-separated list.
-        /// Prevents duplicate interests.
+        /// Prevents duplicate interests and tracks update time.
         /// 
         /// Parameters:
         /// - interest: The topic of interest (e.g., "phishing")
@@ -190,7 +194,7 @@ namespace CyberSecurityAwarenessBot.Core
             }
 
             interest = interest.ToLower().Trim();
-            
+
             // Get existing interests
             string existingInterests = GetPreference("interests") ?? string.Empty;
             List<string> interests = new List<string>();
@@ -204,10 +208,12 @@ namespace CyberSecurityAwarenessBot.Core
             if (!interests.Any(i => i.Equals(interest, StringComparison.OrdinalIgnoreCase)))
             {
                 interests.Add(interest);
+                _interestHistory.Add(interest);  // Track the addition
             }
 
             // Store updated interests
             SetPreference("interests", string.Join(", ", interests));
+            _lastInterestUpdate = DateTime.Now;
         }
 
         /// <summary>
@@ -219,7 +225,7 @@ namespace CyberSecurityAwarenessBot.Core
         public List<string> GetInterests()
         {
             string interests = GetPreference("interests") ?? string.Empty;
-            
+
             if (string.IsNullOrWhiteSpace(interests))
             {
                 return new List<string>();
@@ -259,6 +265,95 @@ namespace CyberSecurityAwarenessBot.Core
         {
             _preferences.Clear();
             _discussedTopics.Clear();
+            _interestHistory.Clear();
+            _lastInterestUpdate = DateTime.MinValue;
+        }
+
+        /// <summary>
+        /// HasRecentInterest() - Checks if an interest was added recently.
+        /// Useful for detecting if the user just expressed an interest.
+        /// 
+        /// Parameters:
+        /// - withinSeconds: The time window (default 60 seconds)
+        /// 
+        /// Returns:
+        /// - true if an interest was added within the time window
+        /// </summary>
+        public bool HasRecentInterest(int withinSeconds = 60)
+        {
+            if (_lastInterestUpdate == DateTime.MinValue)
+            {
+                return false;
+            }
+
+            return (DateTime.Now - _lastInterestUpdate).TotalSeconds <= withinSeconds;
+        }
+
+        /// <summary>
+        /// GetMostRecentInterest() - Returns the most recently added interest.
+        /// Useful for remembering what the user just expressed interest in.
+        /// 
+        /// Returns:
+        /// - The most recent interest, or null if no interests
+        /// </summary>
+        public string GetMostRecentInterest()
+        {
+            if (_interestHistory.Count == 0)
+            {
+                return null;
+            }
+
+            return _interestHistory[_interestHistory.Count - 1];
+        }
+
+        /// <summary>
+        /// RemoveInterest() - Removes a specific interest.
+        /// Allows users to change their mind about interests.
+        /// 
+        /// Parameters:
+        /// - interest: The interest to remove
+        /// </summary>
+        public void RemoveInterest(string interest)
+        {
+            if (string.IsNullOrWhiteSpace(interest))
+            {
+                return;
+            }
+
+            interest = interest.ToLower().Trim();
+            var interests = GetInterests();
+            interests.RemoveAll(i => i.Equals(interest, StringComparison.OrdinalIgnoreCase));
+
+            if (interests.Count > 0)
+            {
+                SetPreference("interests", string.Join(", ", interests));
+            }
+            else
+            {
+                _preferences.Remove("interests");
+            }
+
+            _lastInterestUpdate = DateTime.Now;
+        }
+
+        /// <summary>
+        /// IsInterested() - Checks if user is interested in a specific topic.
+        /// More efficient than searching GetInterests() list.
+        /// 
+        /// Parameters:
+        /// - topic: The topic to check
+        /// 
+        /// Returns:
+        /// - true if the user has expressed interest in this topic
+        /// </summary>
+        public bool IsInterested(string topic)
+        {
+            if (string.IsNullOrWhiteSpace(topic))
+            {
+                return false;
+            }
+
+            return GetInterests().Any(i => i.Equals(topic.ToLower(), StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>

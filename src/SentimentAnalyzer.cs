@@ -48,7 +48,13 @@ namespace CyberSecurityAwarenessBot.Core
                 "scared", "worry", "worried", "afraid", "unsafe", "danger",
                 "anxious", "anxiety", "panic", "fear", "threat", "concerned",
                 "nervous", "terror", "frightened", "alarmed", "dread", "unease",
-                "vulnerable", "exposed", "risk", "risky", "dangerous", "worry about"
+                "vulnerable", "exposed", "risk", "risky", "dangerous", "worry about",
+                "stressed", "stressed out", "overwhelmed", "alarming", "scary",
+                "threatening", "intimidated", "at risk", "in danger", "at risk",
+                "terrified", "fearful", "apprehensive", "disquieted", "concerned",
+                "troubled", "uneasy", "perturbed", "distressed", "startled",
+                "shock", "worried sick", "concern", "unsecure", "not safe",
+                "help me", "what if", "concerned about", "worried about"
             };
 
             _frustratedKeywords = new List<string>
@@ -57,7 +63,13 @@ namespace CyberSecurityAwarenessBot.Core
                 "complicated", "complex", "hard", "difficult", "struggle",
                 "lost", "overwhelm", "don't get it", "don't know", "how do",
                 "explain", "lost", "bewild", "perplex", "puzzle", "annoying",
-                "irritat", "tire", "exhausted", "fed up", "this sucks"
+                "irritat", "tire", "exhausted", "fed up", "this sucks",
+                "stuck", "can't figure", "don't understand", "no idea",
+                "give up", "too much", "too complicated", "doesn't work",
+                "broken", "not working", "useless", "pointless",
+                "frustrated", "bothered", "aggravated", "exasperated",
+                "vexed", "upset", "angry", "mad", "annoyed",
+                "this is hard", "i can't", "it's too", "so difficult"
             };
 
             _curiousKeywords = new List<string>
@@ -66,7 +78,14 @@ namespace CyberSecurityAwarenessBot.Core
                 "curious", "interested", "interested in", "like to know",
                 "want to learn", "intrigu", "fascin", "question", "ask",
                 "explain", "elaborate", "deeper", "more about", "details",
-                "help me understand", "can you tell me", "i want to know"
+                "help me understand", "can you tell me", "i want to know",
+                "teach me", "show me", "let me learn", "understand",
+                "another", "more tips", "one more", "go deeper",
+                "tell me more", "continue", "keep going", "that's interesting",
+                "cool", "awesome", "great to know", "love learning",
+                "expand on", "go into detail", "break it down",
+                "take me through", "walk me through", "what about",
+                "how about", "what else", "anything else", "more info"
             };
 
             _positiveKeywords = new List<string>
@@ -74,7 +93,15 @@ namespace CyberSecurityAwarenessBot.Core
                 "great", "awesome", "excellent", "perfect", "thank you",
                 "thanks", "appreciate", "helpful", "useful", "good",
                 "love", "amazing", "fantastic", "wonderful", "brilliant",
-                "learned a lot", "understand now", "makes sense", "clear now"
+                "learned a lot", "understand now", "makes sense", "clear now",
+                "very helpful", "so helpful", "really helpful", "thanks a lot",
+                "cool", "nice", "sweet", "awesome", "beautiful",
+                "great job", "well done", "impressive", "incredible",
+                "fabulous", "magnificent", "outstanding", "phenomenal",
+                "love it", "adore", "cherish", "appreciate it",
+                "grateful", "thankful", "blessed", "fortunate",
+                "much better", "totally clear", "much clearer",
+                "really get it", "finally understand", "now i see"
             };
         }
 

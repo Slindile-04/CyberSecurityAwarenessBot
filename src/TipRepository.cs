@@ -195,6 +195,31 @@ namespace CyberSecurityAwarenessBot.Core
         }
 
         /// <summary>
+        /// GetAllTips() - Retrieves all tips for a given topic.
+        /// Useful for TipTracker to manage the full list.
+        /// 
+        /// Parameters:
+        /// - topic: The cybersecurity topic
+        /// 
+        /// Returns:
+        /// - List of all tips for the topic, or null if topic doesn't exist
+        /// </summary>
+        public List<string> GetAllTips(string topic)
+        {
+            if (string.IsNullOrWhiteSpace(topic))
+            {
+                return null;
+            }
+
+            if (_topicTips.TryGetValue(topic, out var tips))
+            {
+                return new List<string>(tips);  // Return a copy to prevent external modification
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// GetAllTopics() - Returns a list of all available topics.
         /// Useful for validation and display purposes.
         /// </summary>

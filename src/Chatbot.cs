@@ -1,4 +1,5 @@
 using CyberSecurityAwarenessBot.Helpers;
+using CyberSecurityAwarenessBot.Services;
 
 namespace CyberSecurityAwarenessBot.Core
 {
@@ -41,6 +42,10 @@ namespace CyberSecurityAwarenessBot.Core
         private string? _lastSentimentResponse;
         private int _sentimentResponseCount;
 
+        // NEW: Conversation context and tip tracking services
+        private readonly ConversationManager _conversationManager;
+        private readonly TipTracker _tipTracker;
+
         /// <summary>
         /// Constructor - Initializes the chatbot with audio path and user's name for personalization.
         /// </summary>
@@ -59,6 +64,10 @@ namespace CyberSecurityAwarenessBot.Core
             _sentimentAnalyzer = new SentimentAnalyzer();
             _lastSentimentResponse = null;
             _sentimentResponseCount = 0;
+
+            // Initialize new conversation management services
+            _conversationManager = new ConversationManager();
+            _tipTracker = new TipTracker();
         }
 
         /// <summary>
@@ -133,14 +142,15 @@ namespace CyberSecurityAwarenessBot.Core
         /// HandleUserInput() - Processes user input and routes to appropriate handler.
         /// 
         /// NOW INCLUDES:
-        /// - Sentiment analysis (Step 6)
-        /// - Interest/preference detection (Step 5)
-        /// - Memory-based personalization (Step 5)
+        /// - Conversation context tracking (ConversationManager)
+        /// - Sentiment analysis (SentimentAnalyzer)
+        /// - Interest/preference detection (UserMemory)
+        /// - Improved follow-up phrase detection
         /// 
         /// Supports:
         /// - Numeric menu selections (1-10, 0)
         /// - Tip requests with sentiment-aware responses
-        /// - Continuation requests ("another tip", "more", etc.)
+        /// - Continuation requests ("another tip", "tell me more", "what else", etc.)
         /// - Conversational queries
         /// - Interest statements ("I'm interested in privacy", "I like learning about phishing")
         /// - Exit commands
@@ -150,28 +160,49 @@ namespace CyberSecurityAwarenessBot.Core
         {
             string lowerInput = input.Trim().ToLower();
 
+            // Update conversation context
+            _conversationManager.UpdateContext(input);
+
             // STEP 6: Analyze sentiment BEFORE responding
             string sentiment = _sentimentAnalyzer.DetectSentiment(lowerInput);
+            _conversationManager.UpdateSentiment(sentiment);
 
             // STEP 5: Check for interest/preference statements
             CheckAndStoreInterests(input);
 
-            // Step 3 & 4: Check for tip requests first
+            // Check for tip requests with improved follow-up phrase support
             if (IsTipRequest(lowerInput))
             {
+                _conversationManager.UpdateIntent(ConversationManager.UserIntent.AskingTip);
                 HandleTipRequest(lowerInput, sentiment);
                 return;
             }
 
-            // Check for "another tip", "more", "give me another" when topic is active
-            if (IsContinuationRequest(lowerInput) && !string.IsNullOrEmpty(_currentTopic))
+            // Improved follow-up detection - supports "tell me more", "another", "what else", "continue", etc.
+            if (IsFlexibleFollowUpRequest(lowerInput) && _conversationManager.CanInferFollowUp())
             {
+                _conversationManager.UpdateIntent(ConversationManager.UserIntent.ContinuingConversation);
                 HandleTipRequest(lowerInput, sentiment);
                 return;
             }
 
-            // Reset conversation state if switching to different topic
-            ResetConversationState();
+            // If user said something like "go deeper", "deeper", "elaborate", etc. and we're in a topic
+            if (IsDeepDiveRequest(lowerInput) && _conversationManager.HasCurrentTopic())
+            {
+                _conversationManager.UpdateIntent(ConversationManager.UserIntent.ExploringSameTopic);
+                ProvideDeepDiveEducation(_conversationManager.GetCurrentTopic(), sentiment);
+                return;
+            }
+
+            // Detect if switching topics
+            string potentialNewTopic = DetectTopicFromInput(lowerInput);
+            if (potentialNewTopic != null &&
+                (string.IsNullOrEmpty(_currentTopic) || !potentialNewTopic.Equals(_currentTopic, StringComparison.OrdinalIgnoreCase)))
+            {
+                _conversationManager.UpdateTopic(potentialNewTopic);
+                _currentTopic = potentialNewTopic;
+                _tipCount = 0;
+            }
 
             // Check for numeric menu selections
             switch (lowerInput)
@@ -181,6 +212,8 @@ namespace CyberSecurityAwarenessBot.Core
                 case "phishing attacks":
                 case "tell me about phishing":
                 case "tell me about phishing attacks":
+                    _conversationManager.UpdateIntent(ConversationManager.UserIntent.RequestingEducation);
+                    _conversationManager.UpdateTopic("phishing");
                     ProvideEducationWithSentiment("phishing", sentiment);
                     return;
                 case "2":
@@ -188,6 +221,8 @@ namespace CyberSecurityAwarenessBot.Core
                 case "passwords":
                 case "tell me about passwords":
                 case "tell me about strong passwords":
+                    _conversationManager.UpdateIntent(ConversationManager.UserIntent.RequestingEducation);
+                    _conversationManager.UpdateTopic("passwords");
                     ProvideEducationWithSentiment("passwords", sentiment);
                     return;
                 case "3":
@@ -197,6 +232,8 @@ namespace CyberSecurityAwarenessBot.Core
                 case "authentication":
                 case "tell me about authentication":
                 case "tell me about two factor authentication":
+                    _conversationManager.UpdateIntent(ConversationManager.UserIntent.RequestingEducation);
+                    _conversationManager.UpdateTopic("2fa");
                     ProvideEducationWithSentiment("2fa", sentiment);
                     return;
                 case "4":
@@ -204,30 +241,38 @@ namespace CyberSecurityAwarenessBot.Core
                 case "data privacy":
                 case "tell me about data privacy":
                 case "tell me about privacy":
+                    _conversationManager.UpdateIntent(ConversationManager.UserIntent.RequestingEducation);
+                    _conversationManager.UpdateTopic("privacy");
                     ProvideEducationWithSentiment("privacy", sentiment);
                     return;
                 case "5":
                 case "browsing":
                 case "secure browsing":
                 case "tell me about secure browsing":
+                    _conversationManager.UpdateIntent(ConversationManager.UserIntent.RequestingEducation);
+                    _conversationManager.UpdateTopic("browsing");
                     ProvideEducationWithSentiment("browsing", sentiment);
                     return;
-                ///FOR THE ADDITIONAL TOPICS, THEIR CASES ARE AS FOLLOWS:
                 case "6":
                 case "ransomware":
                 case "tell me about ransomware":
+                    _conversationManager.UpdateIntent(ConversationManager.UserIntent.RequestingEducation);
+                    _conversationManager.UpdateTopic("ransomware");
                     ProvideEducationWithSentiment("ransomware", sentiment);
                     return;
-
                 case "7":
                 case "social engineering":
                 case "tell me about social engineering":
+                    _conversationManager.UpdateIntent(ConversationManager.UserIntent.RequestingEducation);
+                    _conversationManager.UpdateTopic("social engineering");
                     ProvideEducationWithSentiment("social engineering", sentiment);
                     return;
                 case "8":
                 case "software updates":
                 case "patch management":
                 case "tell me about patch management":
+                    _conversationManager.UpdateIntent(ConversationManager.UserIntent.RequestingEducation);
+                    _conversationManager.UpdateTopic("patch management");
                     ProvideEducationWithSentiment("patch management", sentiment);
                     return;
                 case "9":
@@ -237,16 +282,19 @@ namespace CyberSecurityAwarenessBot.Core
                 case "public wi-fi":
                 case "vpn":
                 case "tell me about wifi":
-                case "tell me abou wi-fi":
+                case "tell me about wi-fi":
+                    _conversationManager.UpdateIntent(ConversationManager.UserIntent.RequestingEducation);
+                    _conversationManager.UpdateTopic("wifi");
                     ProvideEducationWithSentiment("wifi", sentiment);
                     return;
                 case "10":
                 case "password manager":
-                case "passwrord managers":
+                case "password managers":
                 case "tell me about password managers":
+                    _conversationManager.UpdateIntent(ConversationManager.UserIntent.RequestingEducation);
+                    _conversationManager.UpdateTopic("password manager");
                     ProvideEducationWithSentiment("password manager", sentiment);
                     return;
-                ///THIS IS WHERE THE ADDITIONAL TOPICS END, SO IF YOU ADD MORE TOPICS, MAKE SURE TO ADD THEIR CASES HERE IN THE SWITCH STATEMENT        
                 case "0":
                 case "exit":
                 case "quit":
@@ -262,18 +310,21 @@ namespace CyberSecurityAwarenessBot.Core
             // Check for conversational keywords using Contains for flexibility
             if (lowerInput.Contains("how are you") || lowerInput.Contains("how are ya") || lowerInput.Contains("how are you doing"))
             {
+                _conversationManager.UpdateIntent(ConversationManager.UserIntent.AskingQuestion);
                 RespondToGreeting();
                 return;
             }
 
-            if (lowerInput.Contains("what") || lowerInput.Contains("what's") && (lowerInput.Contains("purpose") || lowerInput.Contains("do") || lowerInput.Contains("help")))
+            if (lowerInput.Contains("what") && (lowerInput.Contains("purpose") || lowerInput.Contains("do you do") || lowerInput.Contains("help")))
             {
+                _conversationManager.UpdateIntent(ConversationManager.UserIntent.AskingQuestion);
                 RespondToPurpose();
                 return;
             }
 
             if (lowerInput.Contains("help") || lowerInput.Contains("options") || lowerInput.Contains("topics"))
             {
+                _conversationManager.UpdateIntent(ConversationManager.UserIntent.AskingQuestion);
                 DisplayHelpMessage();
                 return;
             }
@@ -305,7 +356,7 @@ namespace CyberSecurityAwarenessBot.Core
         /// </summary>
 
         /// <summary>
-        /// CheckAndStoreInterests() - Detects interest statements and stores them in memory.
+        /// CheckAndStoreInterests() - Detects and stores user interests with natural responses (ISSUE 1).
         /// Looks for patterns like "I'm interested in", "I like learning about", "I care about"
         /// 
         /// Examples:
@@ -328,7 +379,10 @@ namespace CyberSecurityAwarenessBot.Core
                 "is important to me",
                 "concerned about",
                 "want to know about",
-                "want to learn about"
+                "want to learn about",
+                "learn more about",
+                "understand more about",
+                "need to know about"
             };
 
             // Check if input contains interest patterns
@@ -340,18 +394,30 @@ namespace CyberSecurityAwarenessBot.Core
                 string topic = MapKeywordToTopic(input);
                 if (topic != null)
                 {
+                    // Check if this is a new interest or updating existing
+                    bool isNewInterest = !_userMemory.IsInterested(topic);
+
                     // Store the interest in memory
                     _userMemory.AddInterest(topic);
 
-                    // Confirm to user
+                    // Provide natural, personalized response
                     Console.WriteLine();
-                    UIHelper.DisplayBotMessage($"Great! I'll remember that you're interested in {topic}, {_userName}. 📌", ConsoleColor.Green);
-
-                    // Optionally set as favorite if it's the first interest
-                    if (!_userMemory.HasFavoriteTopic())
+                    if (isNewInterest)
                     {
-                        _userMemory.SetFavoriteTopic(topic);
-                        UIHelper.DisplayBotMessage($"I've made {topic} your primary focus area.", ConsoleColor.Green);
+                        // New interest
+                        UIHelper.DisplayBotMessage($"Great! I'll remember that you're interested in {topic}, {_userName}. 📌", ConsoleColor.Green);
+
+                        // If first interest, set as favorite
+                        if (!_userMemory.HasFavoriteTopic())
+                        {
+                            _userMemory.SetFavoriteTopic(topic);
+                            UIHelper.DisplayBotMessage($"I'll focus on {topic} as your primary interest. You can always explore other topics too! 🎯", ConsoleColor.Green);
+                        }
+                    }
+                    else
+                    {
+                        // Interest already recorded - acknowledge update/reiteration
+                        UIHelper.DisplayBotMessage($"Yes, {topic} is definitely an important area to master! I'll keep focusing on that for you. 💪", ConsoleColor.Green);
                     }
                 }
             }
@@ -484,20 +550,26 @@ namespace CyberSecurityAwarenessBot.Core
         }
 
         /// <summary>
-        /// GetMemoryPersonalization() - Uses stored memory to personalize education responses.
-        /// References user's interests and previously discussed topics.
+        /// GetMemoryPersonalization() - Uses stored memory to personalize education responses (ISSUE 1).
+        /// References user's interests and previously discussed topics for natural conversation.
         /// </summary>
         private string GetMemoryPersonalization(string currentTopic)
         {
             var interests = _userMemory.GetInterests();
 
-            // If this is a favorite topic, acknowledge it
+            // If this is a favorite topic, acknowledge it with natural language
             if (_userMemory.HasFavoriteTopic() && _userMemory.GetFavoriteTopic().Equals(currentTopic, StringComparison.OrdinalIgnoreCase))
             {
                 return $"Since {currentTopic} is a primary interest for you, let me give you comprehensive coverage. 🎯";
             }
 
-            // If we've discussed related topics, make a connection
+            // If the current topic is in their interests list, acknowledge it
+            if (_userMemory.IsInterested(currentTopic))
+            {
+                return $"I know you're interested in {currentTopic}—let's explore this thoroughly! 🚀";
+            }
+
+            // If we've discussed related topics, make a natural connection
             var discussedTopics = _userMemory.GetDiscussedTopics();
             if (discussedTopics.Count > 1)
             {
@@ -506,6 +578,33 @@ namespace CyberSecurityAwarenessBot.Core
                 {
                     return $"Building on what you learned about {previousTopic}, {currentTopic} shares some important connections. 🔗";
                 }
+            }
+
+            // If user has multiple interests, reference them
+            if (interests.Count > 1)
+            {
+                return $"You've shown interest in {string.Join(" and ", interests)}, so this knowledge about {currentTopic} will complement your cybersecurity foundation. 💡";
+            }
+
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// GetInterestAcknowledgment() - Creates a natural acknowledgment of user's interests (ISSUE 1).
+        /// Used to make responses feel personalized and attentive to user preferences.
+        /// </summary>
+        private string GetInterestAcknowledgment(string topic)
+        {
+            if (_userMemory.IsInterested(topic))
+            {
+                return $"Great! You're interested in {topic}—";
+            }
+
+            var interests = _userMemory.GetInterests();
+            if (interests.Count > 0)
+            {
+                string interestsList = string.Join(", ", interests);
+                return $"While your main interests are {interestsList}, learning about {topic} will also help protect you—";
             }
 
             return string.Empty;
@@ -527,12 +626,88 @@ namespace CyberSecurityAwarenessBot.Core
 
         /// <summary>
         /// IsContinuationRequest() - Detects if user wants another tip from the same topic.
-        /// Examples: "another tip", "give me another", "more", "one more"
+        /// Examples: "another tip", "another one", "more tips", "more advice"
         /// </summary>
         private bool IsContinuationRequest(string input)
         {
             return (input.Contains("another") || input.Contains("more") || input.Contains("one more")) &&
-                   (input.Contains("tip") || input.Contains("advice") || input.Contains("tips"));
+                   (input.Contains("tip") || input.Contains("advice") || input.Contains("tips") || input.Contains("one"));
+        }
+
+        /// <summary>
+        /// IsFlexibleFollowUpRequest() - Improved detection for follow-up phrases (ISSUE 4).
+        /// Supports natural conversation continuations like:
+        /// - "tell me more"
+        /// - "another one"
+        /// - "what else?"
+        /// - "continue"
+        /// - "go on"
+        /// - "more info"
+        /// </summary>
+        private bool IsFlexibleFollowUpRequest(string input)
+        {
+            var followUpPhrases = new List<string>
+            {
+                "tell me more",
+                "another one",
+                "another tip",
+                "more tips",
+                "what else",
+                "anything else",
+                "continue",
+                "go on",
+                "more info",
+                "more information",
+                "more details",
+                "elaborate",
+                "explain more",
+                "keep going",
+                "one more",
+                "just one more",
+                "give me another",
+                "tell me another",
+                "any more"
+            };
+
+            return followUpPhrases.Any(phrase => input.Contains(phrase));
+        }
+
+        /// <summary>
+        /// IsDeepDiveRequest() - Detects requests to explore a topic more deeply (ISSUE 4).
+        /// Supports phrases like:
+        /// - "go deeper"
+        /// - "deeper"
+        /// - "tell me more details"
+        /// - "elaborate"
+        /// - "break it down"
+        /// </summary>
+        private bool IsDeepDiveRequest(string input)
+        {
+            var deepDivePhrases = new List<string>
+            {
+                "go deeper",
+                "deeper",
+                "more details",
+                "break it down",
+                "elaborate",
+                "explain in detail",
+                "detailed explanation",
+                "take me through",
+                "walk me through",
+                "step by step",
+                "more comprehensive"
+            };
+
+            return deepDivePhrases.Any(phrase => input.Contains(phrase));
+        }
+
+        /// <summary>
+        /// DetectTopicFromInput() - Extracts topic from user input for context tracking (ISSUE 4).
+        /// Useful for updating ConversationManager with the current topic being discussed.
+        /// </summary>
+        private string DetectTopicFromInput(string input)
+        {
+            return MapKeywordToTopic(input);
         }
 
         /// <summary>
@@ -586,20 +761,22 @@ namespace CyberSecurityAwarenessBot.Core
         }
 
         /// <summary>
-        /// HandleTipRequest() - Processes tip requests with sentiment awareness (Step 6).
+        /// HandleTipRequest() - Processes tip requests with enhanced tracking and flow (ISSUE 3).
         /// 
-        /// Enhanced to adjust tone based on user sentiment:
-        /// - Worried: Reassurance added
-        /// - Frustrated: Simplified, encouraging tone
-        /// - Curious: Engaging, deeper insights
-        /// - Neutral/Positive: Standard response
+        /// Features:
+        /// - Tracks used tips per topic using TipTracker
+        /// - Prevents showing the same tip twice
+        /// - Handles the 3-tip -> full education transition
+        /// - Provides remaining tips after education
+        /// - Prevents tip exhaustion loops
+        /// - Sentiment-aware tone (ISSUE 2)
         /// </summary>
         private void HandleTipRequest(string input, string sentiment)
         {
             string requestedTopic = MapKeywordToTopic(input);
 
             // Edge case: User asked "another tip" but no topic was set
-            if (IsContinuationRequest(input) && string.IsNullOrEmpty(_currentTopic))
+            if (IsFlexibleFollowUpRequest(input) && string.IsNullOrEmpty(_currentTopic))
             {
                 Console.WriteLine();
                 UIHelper.DisplayBotMessage($"I'd like to give you another tip, {_userName}, but I need to know which topic first.", ConsoleColor.Yellow);
@@ -608,14 +785,14 @@ namespace CyberSecurityAwarenessBot.Core
             }
 
             // Use current topic if continuing, otherwise use requested topic
-            string? activeTopic = IsContinuationRequest(input) ? _currentTopic : requestedTopic;
+            string? activeTopic = (IsFlexibleFollowUpRequest(input) || IsContinuationRequest(input)) ? _currentTopic : requestedTopic;
 
             // Edge case: Unknown topic
             if (activeTopic == null)
             {
                 Console.WriteLine();
                 UIHelper.DisplayBotMessage($"I'm not sure which topic you're interested in, {_userName}.", ConsoleColor.Yellow);
-                UIHelper.DisplayBotMessage("Try asking about: phishing, passwords, 2fa, privacy, browsing, ransomware, social engineering, patch management, wifi, or password manager.", ConsoleColor.Yellow);
+                UIHelper.DisplayBotMessage("Try asking about: phishing, passwords, 2fa, or any other topics on the menu.", ConsoleColor.Yellow);
                 return;
             }
 
@@ -627,13 +804,29 @@ namespace CyberSecurityAwarenessBot.Core
                 return;
             }
 
-            // Get and display a random tip
-            string tip = _tipRepository.GetRandomTip(activeTopic);
+            // Get all available tips for the topic
+            var allTips = _tipRepository.GetAllTips(activeTopic);
+            int totalTips = allTips?.Count ?? 0;
+
+            // Check if all tips have been shown
+            if (_tipTracker.HasAllTipsBeenShown(activeTopic, totalTips))
+            {
+                Console.WriteLine();
+                UIHelper.DisplayBotMessage($"You've already learned all {totalTips} tips about {activeTopic}! 🎓", ConsoleColor.Green);
+                UIHelper.DisplayBotMessage("Would you like to:", ConsoleColor.Green);
+                UIHelper.DisplayBotMessage($"  • Explore a different topic (e.g., 'tell me about privacy')", ConsoleColor.White);
+                UIHelper.DisplayBotMessage($"  • Get a comprehensive breakdown of {activeTopic} (e.g., 'full education on {activeTopic}')", ConsoleColor.White);
+                return;
+            }
+
+            // Get the next unused tip from TipTracker
+            string tip = _tipTracker.GetNextUnusedTip(activeTopic, allTips);
+
             if (tip != null)
             {
                 Console.WriteLine();
 
-                // STEP 6: Add sentiment-aware prefix
+                // ISSUE 2: Add sentiment-aware prefix
                 string sentimentPrefix = GetSentimentAwarePrefix(sentiment, activeTopic);
                 if (!string.IsNullOrEmpty(sentimentPrefix))
                 {
@@ -645,18 +838,36 @@ namespace CyberSecurityAwarenessBot.Core
 
                 // Update conversation state
                 _currentTopic = activeTopic;
-                _tipCount++;
+                _tipCount = _tipTracker.GetTipCount(activeTopic);
 
-                // After 3 tips, offer full education
-                if (_tipCount >= 3)
+                // ISSUE 3: Enhanced tip flow logic
+                int remainingTips = _tipTracker.GetRemainingTipCount(activeTopic, totalTips);
+
+                if (_tipCount >= 3 && remainingTips > 0)
                 {
-                    OfferFullEducation(activeTopic, sentiment);
+                    // Offer full education after 3 tips
+                    OfferFullEducationBeforeMoreTips(activeTopic, sentiment, remainingTips);
                 }
-                else
+                else if (remainingTips > 0)
                 {
                     // Encourage more tips
                     Console.WriteLine();
-                    UIHelper.DisplayBotMessage($"Want another tip about {activeTopic}? ({3 - _tipCount} more tips before the full breakdown)", ConsoleColor.Green);
+                    int tipsUntilEducation = Math.Max(0, 3 - _tipCount);
+                    if (tipsUntilEducation > 0)
+                    {
+                        UIHelper.DisplayBotMessage($"Want another tip about {activeTopic}? ({tipsUntilEducation} more tips before the full breakdown)", ConsoleColor.Green);
+                    }
+                    else
+                    {
+                        UIHelper.DisplayBotMessage($"You have {remainingTips} more tip(s) about {activeTopic}. Want another?", ConsoleColor.Green);
+                    }
+                }
+                else
+                {
+                    // Last tip - offer comprehensive coverage
+                    Console.WriteLine();
+                    UIHelper.DisplayBotMessage($"That's the last tip I have for {activeTopic}! 🎯", ConsoleColor.Green);
+                    UIHelper.DisplayBotMessage("Would you like a comprehensive breakdown of this topic or explore something else?", ConsoleColor.Green);
                 }
 
                 UIHelper.AutoScroll();
@@ -669,9 +880,60 @@ namespace CyberSecurityAwarenessBot.Core
         }
 
         /// <summary>
-        /// OfferFullEducation() - Offers and provides full education after 3 tips.
-        /// Transitions from quick tips to comprehensive education.
-        /// Enhanced with sentiment awareness (Step 6).
+        /// OfferFullEducationBeforeMoreTips() - Offers comprehensive education after initial tips (ISSUE 3).
+        /// Provides an enhanced transition after 3 tips.
+        /// </summary>
+        private void OfferFullEducationBeforeMoreTips(string topic, string sentiment, int remainingTips)
+        {
+            Console.WriteLine();
+            UIHelper.DisplayBotMessage($"You've collected {_tipCount} great tips about {topic}! 💡", ConsoleColor.White);
+            Console.WriteLine();
+
+            // ISSUE 2: Add sentiment-aware encouragement
+            string sentimentAwareness = GetEducationSentimentAwareness(sentiment, topic);
+            if (!string.IsNullOrEmpty(sentimentAwareness))
+            {
+                UIHelper.DisplayBotMessage(sentimentAwareness, ConsoleColor.Green);
+                Console.WriteLine();
+            }
+
+            UIHelper.DisplayBotMessage("I can give you a more detailed breakdown so you really master this topic.", ConsoleColor.White);
+            UIHelper.DisplayBotMessage($"After that, there will be {remainingTips} more tip(s) to explore if you want them!", ConsoleColor.White);
+            Console.WriteLine();
+            UIHelper.DisplayBotMessage("Would you like the comprehensive breakdown now? (yes/no)", ConsoleColor.Green);
+
+            // Get user response (simplified - in full implementation, might loop until valid response)
+            string? response = Console.ReadLine();
+            if (response != null && (response.ToLower().Contains("yes") || response.ToLower().Contains("y")))
+            {
+                // Provide full education
+                ProvideEducationWithSentiment(topic, sentiment);
+            }
+            else
+            {
+                Console.WriteLine();
+                UIHelper.DisplayBotMessage($"No problem! Feel free to ask for more tips about {topic} whenever you're ready. 🚀", ConsoleColor.Green);
+            }
+        }
+
+        /// <summary>
+        /// ProvideDeepDiveEducation() - Provides deeper insights into a topic (ISSUE 4).
+        /// Called when user requests deeper exploration with phrases like "go deeper".
+        /// </summary>
+        private void ProvideDeepDiveEducation(string topic, string sentiment)
+        {
+            Console.WriteLine();
+            UIHelper.DisplayBotMessage($"Let me dive deeper into {topic} for you, {_userName}. 🔍", ConsoleColor.Green);
+            Console.WriteLine();
+
+            // Use the standard education but with extra emphasis on depth
+            ProvideEducationWithSentiment(topic, sentiment);
+        }
+
+        /// <summary>
+        /// OfferFullEducation() - Offers comprehensive education after tips (legacy method - deprecated).
+        /// This has been replaced by OfferFullEducationBeforeMoreTips() for better flow.
+        /// Kept for backward compatibility.
         /// </summary>
         private void OfferFullEducation(string topic, string sentiment)
         {
@@ -679,7 +941,7 @@ namespace CyberSecurityAwarenessBot.Core
             UIHelper.DisplayBotMessage($"You seem really interested in {topic}, {_userName}! 💡", ConsoleColor.White);
             Console.WriteLine();
 
-            // STEP 6: Add sentiment-aware encouragement
+            // ISSUE 2: Add sentiment-aware encouragement
             string sentimentAwareness = GetEducationSentimentAwareness(sentiment, topic);
             if (!string.IsNullOrEmpty(sentimentAwareness))
             {
