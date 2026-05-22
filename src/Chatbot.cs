@@ -432,6 +432,12 @@ namespace CyberSecurityAwarenessBot.Core
             // Record the topic as discussed
             _userMemory.AddDiscussedTopic(topic);
 
+            // Phase 1: Update conversation context for education flow
+            _conversationManager.SetIntentType("Education");
+            _conversationManager.SetResponseCategory("Education");
+            _conversationManager.UpdateTopic(topic);
+            _conversationManager.ResetTipsShown();
+
             Console.WriteLine();
 
             // STEP 6: Add sentiment-aware introduction
@@ -836,6 +842,12 @@ namespace CyberSecurityAwarenessBot.Core
                 UIHelper.DisplayTypingIndicator();
                 UIHelper.DisplayBotMessage(tip, ConsoleColor.Cyan);
 
+                // Phase 1: Update conversation context after response
+                _conversationManager.SetIntentType("TipRequest");
+                _conversationManager.SetResponseCategory("Tip");
+                _conversationManager.IncrementTipsShown();
+                _conversationManager.UpdateTopic(activeTopic);
+
                 // Update conversation state
                 _currentTopic = activeTopic;
                 _tipCount = _tipTracker.GetTipCount(activeTopic);
@@ -925,6 +937,15 @@ namespace CyberSecurityAwarenessBot.Core
             Console.WriteLine();
             UIHelper.DisplayBotMessage($"Let me dive deeper into {topic} for you, {_userName}. 🔍", ConsoleColor.Green);
             Console.WriteLine();
+
+            // Phase 1: Mark this as a deep-dive/education mode in context
+            _conversationManager.SetIntentType("DeepDiveEducation");
+            var context = _conversationManager.GetContext();
+            if (context != null)
+            {
+                context.IsInEducationMode = true;
+                context.EducationDepth = 3; // Comprehensive depth
+            }
 
             // Use the standard education but with extra emphasis on depth
             ProvideEducationWithSentiment(topic, sentiment);

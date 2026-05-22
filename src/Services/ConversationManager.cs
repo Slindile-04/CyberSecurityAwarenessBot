@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using CyberSecurityAwarenessBot.Models;
 
 namespace CyberSecurityAwarenessBot.Services
 {
@@ -15,7 +16,7 @@ namespace CyberSecurityAwarenessBot.Services
     /// - Enable the chatbot to understand flexible phrasing like "tell me more"
     /// 
     /// Design:
-    /// - Conversation state with history
+    /// - Conversation state with history (via ConversationContext)
     /// - Sentiment history for multi-turn tracking
     /// - Intent tracking for follow-up requests
     /// - Previous message context for "another", "more", etc.
@@ -36,14 +37,12 @@ namespace CyberSecurityAwarenessBot.Services
             ExploringSameTopic = 6
         }
 
-        // Current and previous topics
-        private string _currentTopic;
-        private string _previousTopic;
+        // Core conversation context
+        private ConversationContext _context;
 
-        // Recent sentiment tracking
+        // Additional tracking not in context
         private string _currentSentiment;
         private string _previousSentiment;
-        private readonly List<string> _sentimentHistory;
         private const int MaxSentimentHistory = 5;
 
         // Intent tracking
@@ -52,7 +51,6 @@ namespace CyberSecurityAwarenessBot.Services
 
         // Context tracking
         private string _lastUserInput;
-        private DateTime _lastInteractionTime;
         private int _consecutiveFollowUpRequests;
         private const int MaxConsecutiveFollowUps = 5;
 
@@ -64,15 +62,12 @@ namespace CyberSecurityAwarenessBot.Services
         /// </summary>
         public ConversationManager()
         {
-            _currentTopic = null;
-            _previousTopic = null;
+            _context = new ConversationContext();
             _currentSentiment = "neutral";
             _previousSentiment = "neutral";
-            _sentimentHistory = new List<string>();
             _lastIntent = UserIntent.Unknown;
             _previousIntent = UserIntent.Unknown;
             _lastUserInput = string.Empty;
-            _lastInteractionTime = DateTime.Now;
             _consecutiveFollowUpRequests = 0;
             _topicExplorationCount = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         }
@@ -81,7 +76,7 @@ namespace CyberSecurityAwarenessBot.Services
 
         /// <summary>
         /// UpdateTopic() - Updates the current topic being discussed.
-        /// Automatically moves current to previous.
+        /// Automatically moves current to previous via ConversationContext.
         /// 
         /// Parameters:
         /// - topic: The new current topic
@@ -90,8 +85,9 @@ namespace CyberSecurityAwarenessBot.Services
         {
             if (!string.IsNullOrWhiteSpace(topic))
             {
-                _previousTopic = _currentTopic;
-                _currentTopic = topic.ToLower();
+                // Store in context
+                _context.PreviousTopic = _context.CurrentTopic;
+                _context.CurrentTopic = topic.ToLower();
 
                 // Track exploration count
                 if (!_topicExplorationCount.ContainsKey(topic))
@@ -103,19 +99,19 @@ namespace CyberSecurityAwarenessBot.Services
         }
 
         /// <summary>
-        /// GetCurrentTopic() - Returns the current topic.
+        /// GetCurrentTopic() - Returns the current topic from context.
         /// </summary>
-        public string GetCurrentTopic() => _currentTopic;
+        public string GetCurrentTopic() => _context.CurrentTopic;
 
         /// <summary>
-        /// GetPreviousTopic() - Returns the previous topic.
+        /// GetPreviousTopic() - Returns the previous topic from context.
         /// </summary>
-        public string GetPreviousTopic() => _previousTopic;
+        public string GetPreviousTopic() => _context.PreviousTopic;
 
         /// <summary>
         /// HasCurrentTopic() - Checks if a topic is currently active.
         /// </summary>
-        public bool HasCurrentTopic() => !string.IsNullOrEmpty(_currentTopic);
+        public bool HasCurrentTopic() => !string.IsNullOrEmpty(_context.CurrentTopic);
 
         /// <summary>
         /// GetTopicExplorationCount() - Returns how many times a topic has been explored.
@@ -134,7 +130,7 @@ namespace CyberSecurityAwarenessBot.Services
 
         /// <summary>
         /// UpdateSentiment() - Updates the current sentiment.
-        /// Automatically maintains sentiment history.
+        /// Automatically maintains sentiment history in context.
         /// 
         /// Parameters:
         /// - sentiment: The new sentiment (e.g., "worried", "curious")
@@ -146,14 +142,8 @@ namespace CyberSecurityAwarenessBot.Services
                 _previousSentiment = _currentSentiment;
                 _currentSentiment = sentiment.ToLower();
 
-                // Add to history
-                _sentimentHistory.Add(_currentSentiment);
-
-                // Keep history to recent items
-                if (_sentimentHistory.Count > MaxSentimentHistory)
-                {
-                    _sentimentHistory.RemoveAt(0);
-                }
+                // Add to context's sentiment history
+                _context.AddSentiment(_currentSentiment);
             }
         }
 
@@ -173,12 +163,12 @@ namespace CyberSecurityAwarenessBot.Services
         /// </summary>
         public string GetDominantSentiment()
         {
-            if (_sentimentHistory.Count == 0)
+            if (_context.SentimentHistory.Count == 0)
             {
                 return "neutral";
             }
 
-            return _sentimentHistory
+            return _context.SentimentHistory
                 .GroupBy(s => s)
                 .OrderByDescending(g => g.Count())
                 .First()
@@ -267,7 +257,7 @@ namespace CyberSecurityAwarenessBot.Services
             if (!string.IsNullOrWhiteSpace(userInput))
             {
                 _lastUserInput = userInput.ToLower();
-                _lastInteractionTime = DateTime.Now;
+                _context.LastInteractionTime = DateTime.Now;
             }
         }
 
@@ -282,7 +272,7 @@ namespace CyberSecurityAwarenessBot.Services
         /// </summary>
         public int GetSecondsSinceLastInteraction()
         {
-            return (int)(DateTime.Now - _lastInteractionTime).TotalSeconds;
+            return (int)(DateTime.Now - _context.LastInteractionTime).TotalSeconds;
         }
 
         /// <summary>
@@ -321,11 +311,68 @@ namespace CyberSecurityAwarenessBot.Services
 
             return _lastIntent switch
             {
-                UserIntent.AskingTip => $"continuing {_currentTopic} tips",
-                UserIntent.ExploringSameTopic => $"exploring {_currentTopic} further",
-                UserIntent.RequestingEducation => $"providing {_currentTopic} education",
-                _ => $"discussing {_currentTopic}"
+                UserIntent.AskingTip => $"continuing {_context.CurrentTopic} tips",
+                UserIntent.ExploringSameTopic => $"exploring {_context.CurrentTopic} further",
+                UserIntent.RequestingEducation => $"providing {_context.CurrentTopic} education",
+                _ => $"discussing {_context.CurrentTopic}"
             };
+        }
+
+        // ===== PHASE 1: FOLLOW-UP SUPPORT =====
+
+        /// <summary>
+        /// GetContext() - Returns the ConversationContext for external access.
+        /// Allows Chatbot.cs to inspect and update conversation state directly.
+        /// </summary>
+        public ConversationContext GetContext()
+        {
+            return _context;
+        }
+
+        /// <summary>
+        /// IsValidFollowUp() - Checks if the current context supports follow-up.
+        /// </summary>
+        public bool IsValidFollowUp()
+        {
+            return _context.IsValidForFollowUp();
+        }
+
+        /// <summary>
+        /// IncrementTipsShown() - Increments the tip counter for tracking.
+        /// </summary>
+        public void IncrementTipsShown()
+        {
+            _context.TipsShownCount++;
+        }
+
+        /// <summary>
+        /// ResetTipsShown() - Resets tip counter when topic changes.
+        /// </summary>
+        public void ResetTipsShown()
+        {
+            _context.TipsShownCount = 0;
+        }
+
+        /// <summary>
+        /// SetIntentType() - Sets the intent type in context.
+        /// </summary>
+        public void SetIntentType(string intentType)
+        {
+            if (!string.IsNullOrWhiteSpace(intentType))
+            {
+                _context.LastIntentType = intentType;
+            }
+        }
+
+        /// <summary>
+        /// SetResponseCategory() - Sets the response category in context.
+        /// </summary>
+        public void SetResponseCategory(string responseCategory)
+        {
+            if (!string.IsNullOrWhiteSpace(responseCategory))
+            {
+                _context.LastResponseCategory = responseCategory;
+            }
         }
     }
 }
