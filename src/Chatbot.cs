@@ -1,5 +1,9 @@
+using CyberSecurityAwarenessBot;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using CyberSecurityAwarenessBot.Helpers;
 using CyberSecurityAwarenessBot.Services;
+using CyberSecurityAwarenessBot.Models;
 
 namespace CyberSecurityAwarenessBot.Core
 {
@@ -28,9 +32,14 @@ namespace CyberSecurityAwarenessBot.Core
         private bool _isRunning;
         private readonly TipRepository _tipRepository;
 
-        // Conversation state tracking for Step 3 & 4
+        // Conversation state tracking
         private string? _currentTopic;
         private int _tipCount;
+        // Conversation state for breakdown confirmation
+        private bool _awaitingBreakdownConfirmation;
+        private string? _pendingTopic;
+        private string? _lastIntent;
+        private string? _lastUserInput;
 
         // Step 5: Memory and Recall
         private readonly UserMemory _userMemory;
@@ -45,6 +54,21 @@ namespace CyberSecurityAwarenessBot.Core
         // NEW: Conversation context and tip tracking services
         private readonly ConversationManager _conversationManager;
         private readonly TipTracker _tipTracker;
+
+        // Activity log services
+        private readonly ActivityLogService _activityLogService;
+        private int _activityLogPage;
+        private bool _activityLogMode;
+
+        // Task assistant services
+        private readonly TaskService _taskService;
+        private int? _pendingReminderTaskId;
+        private bool _awaitingReminderResponse;
+        private bool _awaitingTaskDescription;
+        private string? _pendingTaskTitle;
+
+        // Quiz Manager for quiz functionality
+        private QuizManager _quizManager;
 
         /// <summary>
         /// Constructor - Initializes the chatbot with audio path and user's name for personalization.
@@ -68,6 +92,21 @@ namespace CyberSecurityAwarenessBot.Core
             // Initialize new conversation management services
             _conversationManager = new ConversationManager();
             _tipTracker = new TipTracker();
+
+            // Initialize task assistant service
+            _taskService = new TaskService();
+            _pendingReminderTaskId = null;
+            _awaitingReminderResponse = false;
+            _awaitingTaskDescription = false;
+            _pendingTaskTitle = null;
+
+            // Initialize activity logging service
+            _activityLogService = new ActivityLogService();
+            _activityLogPage = 0;
+            _activityLogMode = false;
+
+            // Initialize quiz manager
+            _quizManager = new QuizManager();
         }
 
         /// <summary>
@@ -166,6 +205,34 @@ namespace CyberSecurityAwarenessBot.Core
             // STEP 6: Analyze sentiment BEFORE responding
             string sentiment = _sentimentAnalyzer.DetectSentiment(lowerInput);
             _conversationManager.UpdateSentiment(sentiment);
+
+            // Activity log command support
+            if (IsShowActivityLogCommand(lowerInput))
+            {
+                _activityLogPage = 1;
+                _activityLogMode = true;
+                _activityLogService.AddEntry("ActivityLog", "Viewed activity log.");
+                string pageResponse = GetActivityLogPageResponse(_activityLogPage);
+                Console.WriteLine();
+                UIHelper.DisplayBotMessage(pageResponse, ConsoleColor.Green);
+                return;
+            }
+
+            if (_activityLogMode && IsShowMoreActivityLogCommand(lowerInput))
+            {
+                _activityLogPage++;
+                _activityLogService.AddEntry("ActivityLog", $"Viewed more activity log (page {_activityLogPage}).");
+                string pageResponse = GetActivityLogPageResponse(_activityLogPage);
+                Console.WriteLine();
+                UIHelper.DisplayBotMessage(pageResponse, ConsoleColor.Green);
+                return;
+            }
+
+            // Reset activity log pagination when the user leaves log mode
+            if (_activityLogMode)
+            {
+                ResetActivityLogPagination();
+            }
 
             // STEP 5: Check for interest/preference statements
             CheckAndStoreInterests(input);
@@ -342,12 +409,32 @@ namespace CyberSecurityAwarenessBot.Core
 
         /// <summary>
         /// IsTipRequest() - Detects if the user is asking for a tip.
-        /// Examples: "give me a phishing tip", "password tip", "any 2fa advice"
+        /// Examples: "give me a phishing tip", "password tip", "any 2fa advice", "a phishing tip", "tips on privacy"
+        /// Enhanced to catch more natural language patterns without being too restrictive.
         /// </summary>
         private bool IsTipRequest(string input)
         {
-            return (input.Contains("tip") || input.Contains("advice")) &&
-                   (input.Contains("give") || input.Contains("any") || input.Contains("tell") || input.Contains("about"));
+            // Check if input contains "tip" or "advice"
+            bool hasTipKeyword = input.Contains("tip") || input.Contains("advice");
+
+            if (!hasTipKeyword)
+                return false;
+
+            // Pattern 1: Contains action words (give, tell, show, any, want, need, etc.)
+            bool hasActionWord = input.Contains("give") || input.Contains("tell") || input.Contains("show") ||
+                                input.Contains("any") || input.Contains("want") || input.Contains("need") ||
+                                input.Contains("about") || input.Contains("on") || input.Contains("for");
+
+            if (hasActionWord)
+                return true;
+
+            // Pattern 2: If we can detect a topic keyword, it's likely a tip request
+            // e.g., "A phishing tip", "Password tips", "Privacy advice"
+            string detectedTopic = MapKeywordToTopic(input);
+            if (detectedTopic != null)
+                return true;
+
+            return false;
         }
 
         /// <summary>
@@ -430,6 +517,7 @@ namespace CyberSecurityAwarenessBot.Core
         private void ProvideEducationWithSentiment(string topic, string sentiment)
         {
             // Record the topic as discussed
+            _activityLogService.AddEntry("Topic", $"Started education on topic '{topic}'.");
             _userMemory.AddDiscussedTopic(topic);
 
             // Phase 1: Update conversation context for education flow
@@ -830,6 +918,7 @@ namespace CyberSecurityAwarenessBot.Core
 
             if (tip != null)
             {
+                _activityLogService.AddEntry("Tip", $"Delivered tip for {activeTopic}.");
                 Console.WriteLine();
 
                 // ISSUE 2: Add sentiment-aware prefix
@@ -855,31 +944,16 @@ namespace CyberSecurityAwarenessBot.Core
                 // ISSUE 3: Enhanced tip flow logic
                 int remainingTips = _tipTracker.GetRemainingTipCount(activeTopic, totalTips);
 
-                if (_tipCount >= 3 && remainingTips > 0)
+                if (remainingTips > 0)
                 {
-                    // Offer full education after 3 tips
-                    OfferFullEducationBeforeMoreTips(activeTopic, sentiment, remainingTips);
-                }
-                else if (remainingTips > 0)
-                {
-                    // Encourage more tips
                     Console.WriteLine();
-                    int tipsUntilEducation = Math.Max(0, 3 - _tipCount);
-                    if (tipsUntilEducation > 0)
-                    {
-                        UIHelper.DisplayBotMessage($"Want another tip about {activeTopic}? ({tipsUntilEducation} more tips before the full breakdown)", ConsoleColor.Green);
-                    }
-                    else
-                    {
-                        UIHelper.DisplayBotMessage($"You have {remainingTips} more tip(s) about {activeTopic}. Want another?", ConsoleColor.Green);
-                    }
+                    UIHelper.DisplayBotMessage($"You have {remainingTips} more tip(s) about {activeTopic}. Ask for another tip whenever you're ready.", ConsoleColor.Green);
                 }
                 else
                 {
-                    // Last tip - offer comprehensive coverage
                     Console.WriteLine();
-                    UIHelper.DisplayBotMessage($"That's the last tip I have for {activeTopic}! 🎯", ConsoleColor.Green);
-                    UIHelper.DisplayBotMessage("Would you like a comprehensive breakdown of this topic or explore something else?", ConsoleColor.Green);
+                    UIHelper.DisplayBotMessage($"You've now received all available tips for {activeTopic}! 🎯", ConsoleColor.Green);
+                    UIHelper.DisplayBotMessage($"Try exploring another cybersecurity topic or ask for the full {activeTopic} overview.", ConsoleColor.Green);
                 }
 
                 UIHelper.AutoScroll();
@@ -892,8 +966,9 @@ namespace CyberSecurityAwarenessBot.Core
         }
 
         /// <summary>
-        /// OfferFullEducationBeforeMoreTips() - Offers comprehensive education after initial tips (ISSUE 3).
-        /// Provides an enhanced transition after 3 tips.
+        /// OfferFullEducationBeforeMoreTips() - Legacy helper for a breakdown prompt after the first few tips.
+        /// This method is currently retained for backwards compatibility, but the automatic
+        /// 3-tip breakdown flow has been removed from both CLI and GUI tip responses.
         /// </summary>
         private void OfferFullEducationBeforeMoreTips(string topic, string sentiment, int remainingTips)
         {
@@ -1505,292 +1580,1428 @@ namespace CyberSecurityAwarenessBot.Core
         /// ProcessMessage - Public method for GUI integration.
         /// Processes user input and returns a response string without printing to console.
         /// 
-        /// This method:
+        /// NOW INCLUDES FULL ADVANCED CONVERSATION INTELLIGENCE:
         /// - Analyzes sentiment of the input
         /// - Checks memory and interests
+        /// - Detects flexible follow-ups and continuations
+        /// - Tracks conversation context (topic, intent, state)
+        /// - Uses tip progression tracking (3-tip education transition)
+        /// - Provides sentiment-aware responses
         /// - Routes to appropriate topic handler
         /// - Returns response as a string (ideal for GUI)
         /// </summary>
         public string ProcessMessage(string userInput)
         {
+            // 1. Basic validation
             if (string.IsNullOrWhiteSpace(userInput))
                 return $"I didn't catch that, {_userName}. Please enter something or type 'help' for options.";
 
-            string lowerInput = userInput.Trim().ToLower();
+            string rawInput = userInput.Trim();
+            string lowerInput = rawInput.ToLowerInvariant();
+            _lastUserInput = rawInput;
 
-            // Sentiment analysis
-            string sentiment = _sentimentAnalyzer.DetectSentiment(lowerInput);
-
-            // Check for interest statements
-            CheckAndStoreInterests(userInput);
-
-            // Check for exit command
-            if (lowerInput == "0" || lowerInput == "exit" || lowerInput == "quit" || lowerInput == "bye")
+            // 2. Exit command
+            if (IsExitCommand(lowerInput))
             {
+                _isRunning = false;
                 return $"Take care, {_userName}! Remember to stay secure online! 🔒";
             }
 
-            // Check for help command
-            if (lowerInput == "help")
+            // 2.a Activity log commands
+            if (IsShowActivityLogCommand(lowerInput))
             {
+                _activityLogPage = 1;
+                _activityLogMode = true;
+                _activityLogService.AddEntry("ActivityLog", "Viewed activity log.");
+                return GetActivityLogPageResponse(_activityLogPage);
+            }
+
+            if (_activityLogMode && IsShowMoreActivityLogCommand(lowerInput))
+            {
+                _activityLogPage++;
+                _activityLogService.AddEntry("ActivityLog", $"Viewed more activity log (page {_activityLogPage}).");
+                return GetActivityLogPageResponse(_activityLogPage);
+            }
+
+            // Reset activity log pagination when the user leaves log mode
+            if (_activityLogMode)
+            {
+                ResetActivityLogPagination();
+            }
+
+            // 2.1 Pending task description follow-up
+            if (_awaitingTaskDescription)
+            {
+                return HandlePendingTaskDescription(rawInput);
+            }
+
+            // 2.2 Pending reminder follow-up
+            if (_awaitingReminderResponse)
+            {
+                return HandlePendingReminderResponse(lowerInput);
+            }
+
+            // 2.3 Task assistant commands
+            if (IsTaskCommand(lowerInput))
+            {
+                _activityLogService.AddEntry("Task", $"Task command received: {lowerInput}");
+                return HandleTaskCommand(lowerInput, userInput);
+            }
+
+            // 2.3 Tip request – PRIORITIZED early (before conversational replies that might interfere)
+            if (IsTipRequest(lowerInput) || IsFlexibleFollowUpRequest(lowerInput))
+            {
+                // Try to extract topic from the input first
+                string extractedTopic = MapKeywordToTopic(lowerInput);
+
+                if (extractedTopic != null)
+                {
+                    // Topic was specified in the input, use it
+                    _currentTopic = extractedTopic;
+                }
+                else if (string.IsNullOrEmpty(_currentTopic))
+                {
+                    // No topic in input and no current topic set
+                    return "Which topic would you like a tip about? (e.g., phishing, passwords, privacy)";
+                }
+
+                // Sentiment detection for tip response context
+                string tipSentiment = _sentimentAnalyzer.DetectSentiment(lowerInput);
+                _conversationManager.UpdateSentiment(tipSentiment);
+
+                // Delegate to the tracking method (handles 3-tip breakdown offer)
+                return GenerateTipResponseWithTracking(userInput, tipSentiment);
+            }
+
+            // 2.5 Conversational replies (greetings, small talk, thanks, etc.)
+            string? conversationalReply = GetConversationalReply(lowerInput);
+            if (conversationalReply != null)
+                return conversationalReply;
+
+            // 2.6 Quiz Game integration – handles quiz commands and active quiz answers
+            string? quizResponse = _quizManager.HandleInput(lowerInput);
+            if (quizResponse != null)
+            {
+                _activityLogService.AddEntry("Quiz", $"Quiz interaction: {lowerInput}");
+                return quizResponse;
+            }
+
+
+
+            // 3. Handle pending breakdown confirmation
+            if (_awaitingBreakdownConfirmation)
+                return HandleBreakdownConfirmation(lowerInput);
+
+            // 4. Memory recall request
+            if (IsMemoryRecallRequest(lowerInput))
+            {
+                _activityLogService.AddEntry("Memory", "Recalled stored user interests.");
+                return GetMemoryRecallResponse();
+            }
+
+            // 5. Interest detection & storage
+            if (DetectAndStoreInterest(lowerInput))
+            {
+                _activityLogService.AddEntry("Interest", $"Stored interest in topic: {_currentTopic}");
+                return $"Got it! I'll remember that you're interested in {_currentTopic}.";
+            }
+
+            // 6. Sentiment detection (with optional topic association)
+            string sentiment = _sentimentAnalyzer.DetectSentiment(lowerInput);
+            _conversationManager.UpdateSentiment(sentiment);
+            if (TryHandleSentimentWithTopic(lowerInput, sentiment, out string sentimentResponse))
+                return sentimentResponse;
+
+            // 7. Explicit topic request (full breakdown)
+            if (TryGetTopicFromInput(lowerInput, out string topic))
+            {
+                _activityLogService.AddEntry("Topic", $"Requested topic breakdown for '{topic}'.");
+                _currentTopic = topic;
+                _userMemory.AddDiscussedTopic(topic);
+                return GetTopicResponse(topic);
+            }
+
+            // 8. Help command
+            if (lowerInput.Contains("help"))
                 return GetHelpResponse();
-            }
 
-            // Check for tip requests
-            if (IsTipRequest(lowerInput))
-            {
-                return GenerateTipResponse(lowerInput, sentiment);
-            }
-
-            // Check for continuation requests
-            if (IsContinuationRequest(lowerInput) && !string.IsNullOrEmpty(_currentTopic))
-            {
-                return GenerateTipResponse(lowerInput, sentiment);
-            }
-
-            // Route to topic-specific responses
-            return RouteToTopicResponse(lowerInput, sentiment);
+            // 9. Fallback
+            return $"I'm not sure how to respond to that, {_userName}. Try asking about a cybersecurity topic (e.g., 'phishing'), or type 'help' for options.";
         }
 
+        private static readonly string[] _taskCommandTriggers =
+        {
+    "add task", "create task", "new task",
+    "show tasks", "list tasks", "view tasks",
+    "pending tasks",
+    "complete task", "complete ",
+    "delete task", "remove task", "delete ", "remove ",
+    "remind me", "remind "
+};
+
+        private bool IsTaskCommand(string lowerInput)
+        {
+            return _taskCommandTriggers.Any(trigger => lowerInput.Contains(trigger));
+        }
+
+        private string HandleTaskCommand(string lowerInput, string rawInput)
+        {
+            // Show all tasks
+            if (lowerInput.Contains("show tasks") || lowerInput.Contains("list tasks") || lowerInput.Contains("view tasks"))
+                return FormatTaskList(_taskService.GetAllTasks());
+
+            // Show only pending tasks
+            if (lowerInput.Contains("pending tasks"))
+                return FormatTaskList(_taskService.GetPendingTasks());
+
+            // Complete a task
+            if (lowerInput.Contains("complete task") || lowerInput.StartsWith("complete "))
+                return HandleCompleteTaskCommand(lowerInput);
+
+            // Delete/remove a task
+            if (lowerInput.Contains("delete task") || lowerInput.Contains("remove task") ||
+                lowerInput.StartsWith("delete ") || lowerInput.StartsWith("remove "))
+                return HandleDeleteTaskCommand(lowerInput);
+
+            // Add a new task
+            if (lowerInput.Contains("add task") || lowerInput.Contains("create task") || lowerInput.Contains("new task"))
+                return HandleAddTaskCommand(rawInput);
+
+            // Set a reminder
+            if (lowerInput.Contains("remind me"))
+                return HandleSetReminderCommand(lowerInput);
+
+            return "I can help manage tasks. Try commands like 'add task review privacy settings', 'show tasks', 'complete task 1', or 'remind me in 3 days'.";
+        }
+
+        private string HandleAddTaskCommand(string rawInput)
+        {
+            string lowerInput = rawInput.ToLowerInvariant();
+            string titleText = rawInput;
+            string[] patterns = { "add task", "create task", "new task" };
+
+            foreach (string pattern in patterns)
+            {
+                int idx = lowerInput.IndexOf(pattern, StringComparison.Ordinal);
+                if (idx >= 0)
+                {
+                    titleText = rawInput.Substring(idx + pattern.Length).Trim();
+                    break;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(titleText))
+                return "Please tell me what task to add, for example: 'Add task review privacy settings'.";
+
+            if (TryParseTaskTitleAndInlineDescription(titleText, out string title, out string? description))
+            {
+                title = TaskService.ConvertTitleToFriendlyText(title);
+                if (!string.IsNullOrWhiteSpace(description))
+                {
+                    var task = _taskService.AddTask(title, description.Trim());
+                    _pendingReminderTaskId = task.Id;
+                    _awaitingReminderResponse = true;
+
+                    return $"Task added:\nTitle: {task.Title}\nDescription: {task.Description}\nWould you like to set a reminder?";
+                }
+
+                _pendingTaskTitle = title;
+                _awaitingTaskDescription = true;
+                return $"Okay, what description should I use for '{title}'?";
+            }
+
+            return "Please tell me what task to add, for example: 'Add task review privacy settings'.";
+        }
+
+        private bool TryParseTaskTitleAndInlineDescription(string titleText, out string title, out string? description)
+        {
+            title = titleText.Trim();
+            description = null;
+            if (string.IsNullOrWhiteSpace(title))
+                return false;
+
+            string[] separators = { ":", " - ", " — ", " | " };
+            foreach (string separator in separators)
+            {
+                int separatorIndex = title.IndexOf(separator, StringComparison.Ordinal);
+                if (separatorIndex >= 0)
+                {
+                    description = title.Substring(separatorIndex + separator.Length).Trim();
+                    title = title.Substring(0, separatorIndex).Trim();
+                    break;
+                }
+            }
+
+            return !string.IsNullOrWhiteSpace(title);
+        }
+
+        private string HandlePendingTaskDescription(string rawInput)
+        {
+            string cleanInput = rawInput.Trim();
+            if (string.IsNullOrWhiteSpace(cleanInput))
+                return "Please provide a short description for the task.";
+
+            string lowerInput = cleanInput.ToLowerInvariant();
+            if (IsPositiveResponse(lowerInput) && cleanInput.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length <= 2)
+                return "Sure. Please type a brief task description, for example: 'Check app permissions and adjust privacy settings'.";
+
+            if (lowerInput == "skip" || lowerInput == "no" || lowerInput == "none")
+            {
+                cleanInput = BuildTaskDescriptionFromTitle(_pendingTaskTitle ?? "task");
+            }
+
+            string title = _pendingTaskTitle ?? "New Task";
+            var task = _taskService.AddTask(title, cleanInput);
+            _pendingReminderTaskId = task.Id;
+            _awaitingReminderResponse = true;
+            _awaitingTaskDescription = false;
+            _pendingTaskTitle = null;
+
+            return $"Task added:\nTitle: {task.Title}\nDescription: {task.Description}\nWould you like to set a reminder?";
+        }
+
+        private string HandleCompleteTaskCommand(string lowerInput)
+        {
+            if (!TryParseTaskId(lowerInput, out int taskId))
+                return "Please specify which task to complete, such as 'complete task 1'.";
+
+            return _taskService.MarkTaskCompleted(taskId)
+                ? "Task marked as completed."
+                : $"I couldn't find task {taskId}.";
+        }
+
+        private string HandleDeleteTaskCommand(string lowerInput)
+        {
+            if (!TryParseTaskId(lowerInput, out int taskId))
+                return "Please specify which task to delete, such as 'delete task 1'.";
+
+            return _taskService.DeleteTask(taskId)
+                ? "Task removed successfully."
+                : $"I couldn't find task {taskId}.";
+        }
+
+        private string HandleSetReminderCommand(string lowerInput)
+        {
+            if (!TryParseReminderDate(lowerInput, out DateTime reminderDate))
+                return "Please tell me when to remind you, for example 'remind me tomorrow', 'remind me in 3 days', or 'remind me next week'.";
+
+            int? taskId = null;
+            if (TryParseTaskId(lowerInput, out int parsedId))
+                taskId = parsedId;
+            else if (_pendingReminderTaskId.HasValue)
+                taskId = _pendingReminderTaskId.Value;
+            else
+            {
+                var pendingTasks = _taskService.GetPendingTasks();
+                if (pendingTasks.Count == 1)
+                    taskId = pendingTasks[0].Id;
+            }
+
+            if (!taskId.HasValue)
+                return "Which task should I attach that reminder to? For example: 'remind me in 3 days for task 1'.";
+
+            if (!_taskService.SetReminder(taskId.Value, reminderDate))
+                return $"I couldn't set a reminder for task {taskId.Value}.";
+
+            _pendingReminderTaskId = null;
+            _awaitingReminderResponse = false;
+            return $"Reminder set successfully.\nI'll remind you {GetRelativeReminderText(reminderDate)}.";
+        }
+
+        private string HandlePendingReminderResponse(string lowerInput)
+        {
+            if (TryParseReminderDate(lowerInput, out DateTime reminderDate))
+            {
+                return SavePendingReminder(reminderDate);
+            }
+
+            if (IsNegativeResponse(lowerInput))
+            {
+                _awaitingReminderResponse = false;
+                _pendingReminderTaskId = null;
+                return "No problem. The task has been saved without a reminder.";
+            }
+
+            if (IsPositiveResponse(lowerInput))
+            {
+                return "Sure. When would you like me to remind you?";
+            }
+
+            return "Please tell me when to remind you, such as 'tomorrow', 'in 2 days', 'next week', or say 'no' if you do not want a reminder.";
+        }
+
+        private string SavePendingReminder(DateTime reminderDate)
+        {
+            int? taskId = _pendingReminderTaskId;
+            if (!taskId.HasValue)
+            {
+                var pendingTasks = _taskService.GetPendingTasks();
+                if (pendingTasks.Count == 1)
+                    taskId = pendingTasks[0].Id;
+            }
+
+            if (!taskId.HasValue)
+                return "I couldn't determine which task to attach that reminder to. Please say 'remind me in 2 days for task 1'.";
+
+            if (!_taskService.SetReminder(taskId.Value, reminderDate))
+                return $"I couldn't set a reminder for task {taskId.Value}.";
+
+            _awaitingReminderResponse = false;
+            _pendingReminderTaskId = null;
+            return $"Reminder set successfully.\nI'll remind you {GetRelativeReminderText(reminderDate)}.";
+        }
+
+        private bool TryParseReminderDate(string lowerInput, out DateTime reminderDate)
+        {
+            var today = DateTime.Now.Date;
+            if (lowerInput.Contains("tomorrow"))
+            {
+                reminderDate = today.AddDays(1);
+                return true;
+            }
+
+            if (lowerInput.Contains("next month"))
+            {
+                reminderDate = today.AddMonths(1);
+                return true;
+            }
+
+            if (lowerInput.Contains("next week") || lowerInput.Contains("a week"))
+            {
+                reminderDate = today.AddDays(7);
+                return true;
+            }
+
+            if (lowerInput.Contains("today"))
+            {
+                reminderDate = today;
+                return true;
+            }
+
+            var match = Regex.Match(lowerInput, @"\bin\s*(\d+)\s*days?\b");
+            if (match.Success && int.TryParse(match.Groups[1].Value, out int days))
+            {
+                reminderDate = today.AddDays(days);
+                return true;
+            }
+
+            reminderDate = default;
+            return false;
+        }
+
+        private bool TryParseTaskId(string lowerInput, out int taskId)
+        {
+            var match = Regex.Match(lowerInput, @"\b(?:task\s*)?(\d+)\b");
+            if (match.Success && int.TryParse(match.Groups[1].Value, out taskId))
+                return true;
+
+            taskId = 0;
+            return false;
+        }
+
+        private string BuildTaskDescriptionFromTitle(string title)
+        {
+            // Map keywords to pre‑written descriptions
+            var descriptionMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        { "Privacy Settings", "Review your privacy settings to ensure your data is protected." },
+        { "Password", "Review your password strategy and strengthen any weak or reused credentials." },
+        { "backup", "Confirm your backups are current and stored securely." },
+        { "two-factor", "Verify your two-factor authentication is enabled and working for important accounts." },
+        { "2fa", "Verify your two-factor authentication is enabled and working for important accounts." }
+    };
+
+            foreach (var kvp in descriptionMap)
+            {
+                if (title.Contains(kvp.Key, StringComparison.OrdinalIgnoreCase))
+                    return kvp.Value;
+            }
+
+            return $"Review {title.ToLowerInvariant()} to keep your cybersecurity strong.";
+        }
+
+        private string FormatTaskList(List<TaskItem> tasks)
+        {
+            if (tasks == null || tasks.Count == 0)
+                return "You have no tasks yet. Add one by saying 'add task ...'.";
+
+            var lines = new List<string> { "Your Tasks" };
+            foreach (var task in tasks)
+            {
+                lines.Add($"{task.Id}. {task.Title}");
+                lines.Add($"Description: {task.Description}");
+                lines.Add(task.ReminderDate.HasValue
+                    ? $"Reminder: {GetRelativeReminderText(task.ReminderDate.Value)}"
+                    : "Reminder: none");
+                lines.Add($"Status: {(task.IsCompleted ? "Completed" : "Pending")}");
+                lines.Add(string.Empty);
+            }
+
+            return string.Join("\n", lines).TrimEnd();
+        }
+
+        private string GetRelativeReminderText(DateTime reminderDate)
+        {
+            int deltaDays = (reminderDate.Date - DateTime.Now.Date).Days;
+            return deltaDays switch
+            {
+                < 0 => $"overdue by {Math.Abs(deltaDays)} day(s)",
+                0 => "today",
+                1 => "tomorrow",
+                7 => "next week",
+                > 1 => $"in {deltaDays} days",
+            };
+        }
+
+        private string HandleBreakdownConfirmation(string lowerInput)
+        {
+            // Positive response: yes, sure, absolutely, etc.
+            if (IsPositiveResponse(lowerInput))
+            {
+                _awaitingBreakdownConfirmation = false;
+                string topicToShow = _pendingTopic ?? _currentTopic;
+                _pendingTopic = null;
+
+                return !string.IsNullOrEmpty(topicToShow)
+                    ? GetTopicResponse(topicToShow)
+                    : "Which topic would you like a full breakdown on?";
+            }
+
+            // Negative response: no, nope, not now, etc.
+            if (IsNegativeResponse(lowerInput))
+            {
+                _awaitingBreakdownConfirmation = false;
+                _pendingTopic = null;
+                return $"No problem! Let me know if you'd like to learn about another cybersecurity topic.";
+            }
+
+            // Any other response (neither yes nor no) – stay in confirmation state and re‑prompt
+            return "Please answer 'yes' or 'no'. Would you like the full breakdown?";
+        }
+
+        private string GetMemoryRecallResponse()
+        {
+            var favorite = _userMemory.HasFavoriteTopic() ? _userMemory.GetFavoriteTopic() : null;
+            var interests = _userMemory.GetInterests();
+            if (favorite != null)
+                return $"You told me your favorite topic is {favorite}.";
+            if (interests.Count > 0)
+                return $"You've shown interest in: {string.Join(", ", interests)}.";
+            return "I don't have any interests stored for you yet. Tell me what you're interested in!";
+        }
+
+        private bool TryHandleSentimentWithTopic(string lowerInput, string sentiment, out string response)
+        {
+            response = null;
+
+            if (DetectSentimentWithTopic(lowerInput, sentiment, out string detectedTopic))
+            {
+                _currentTopic = detectedTopic;
+
+                // Generate a tip using the full tracking method (replaces the removed GenerateSingleTip)
+                string tipResponse = GenerateTipResponseWithTracking(lowerInput, sentiment);
+
+                // Fallback in case tip generation returns an empty or null string
+                if (string.IsNullOrWhiteSpace(tipResponse))
+                    tipResponse = "Let's start with a practical tip to help you feel more secure.";
+
+                response = $"I can see you're {sentiment} about {detectedTopic}. Let's address that together!\n{tipResponse}";
+                _activityLogService.AddEntry("Sentiment", $"Detected sentiment '{sentiment}' about topic '{detectedTopic}'.");
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool TryGetTopicFromInput(string lowerInput, out string topic)
+        {
+            // Use the static alias map from previous refactoring
+            return _topicAliasMap.TryGetValue(lowerInput, out topic);
+        }
+
+        private string GenerateSingleTip(string topic)
+        {
+            // Simplified tip generation – you can implement this as a small dictionary
+            // or use a method that returns a random tip for the topic.
+            // For now, we'll return a generic tip from the full response's first paragraph.
+            if (_topicResponses.TryGetValue(topic, out string fullResponse))
+            {
+                // Extract first sentence or first few lines as a tip
+                var firstLine = fullResponse.Split('\n')[0];
+                return $"💡 Tip: {firstLine}\n\nWant more? Ask for another tip or type 'breakdown' for full details.";
+            }
+            return $"I don't have a tip for '{topic}' yet. Try asking about phishing, passwords, or 2FA.";
+        }
+
+        // --- You'll need these dictionaries from the previous refactoring ---
+        // private static readonly Dictionary<string, string> _topicAliasMap = ...
+        // private static readonly Dictionary<string, string> _topicResponses = ...
+        // private string GetTopicResponse(string topic) => _topicResponses.GetValueOrDefault(...);
+
+        // Helper: Exit command detection
+        private bool IsExitCommand(string input)
+        {
+            var exitWords = new[] { "exit", "quit", "bye", "goodbye", "farewell" };
+            var separators = new[] { ' ', '\t', '.', ',', '!', '?', ';', ':', '-', '_', '/', '\\', '"', '\'' };
+            var tokens = input.Split(separators, StringSplitOptions.RemoveEmptyEntries);
+
+            // Only treat "0" as exit when it is a standalone token, not when part of "10".
+            if (tokens.Contains("0"))
+                return true;
+
+            return tokens.Any(token => exitWords.Contains(token));
+        }
+
+        // Helper: Positive/Negative response detection for confirmations
+        private bool IsPositiveResponse(string input)
+        {
+            var yesWords = new[] { "yes", "yep", "yeah", "y", "sure", "of course", "please do", "absolutely" };
+            return yesWords.Any(word => input == word || input.StartsWith(word) || input.Contains(word));
+        }
+        private bool IsNegativeResponse(string input)
+        {
+            var noWords = new[] { "no", "nope", "n", "not now", "maybe later", "not really" };
+            return noWords.Any(word => input == word || input.StartsWith(word) || input.Contains(word));
+        }
+
+        // Helper: Get education for a topic (full breakdown)
+        private string GetEducationForTopic(string topic)
+        {
+            if (string.IsNullOrEmpty(topic))
+                return "Which topic would you like a full breakdown on?";
+            switch (topic.ToLower())
+            {
+                case "phishing": return GetComprehensiveEducation("phishing");
+                case "passwords": return GetComprehensiveEducation("passwords");
+                case "2fa": return GetComprehensiveEducation("2fa");
+                case "privacy": return GetComprehensiveEducation("privacy");
+                case "browsing": return GetComprehensiveEducation("browsing");
+                case "ransomware": return GetComprehensiveEducation("ransomware");
+                case "social engineering": return GetComprehensiveEducation("social engineering");
+                case "patch management": return GetComprehensiveEducation("patch management");
+                case "wifi": return GetComprehensiveEducation("wifi");
+                case "password manager": return GetComprehensiveEducation("password manager");
+                default: return $"Sorry, I don't have a full breakdown for {topic}.";
+            }
+        }
+
+        // Helper: Detect and store interest, update _currentTopic
+        private bool DetectAndStoreInterest(string input)
+        {
+            var interestPatterns = new List<string>
+            {
+                "interested in", "interested about", "like learning about", "like to learn about", "care about", "is important to me", "concerned about", "want to know about", "want to learn about", "learn more about", "understand more about", "need to know about"
+            };
+            if (interestPatterns.Any(pattern => input.Contains(pattern)))
+            {
+                string? topic = MapKeywordToTopic(input);
+                if (topic != null)
+                {
+                    _userMemory.AddInterest(topic);
+                    _currentTopic = topic;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Helper: Detect memory recall request
+        // Pattern list for memory recall – static to avoid reallocation on every call
+        private static readonly List<string> _memoryRecallPatterns = new()
+        {
+            "what topic am i interested in",
+            "what do you remember about me",
+            "what's my favourite topic",
+            "what is my favourite topic",
+            "what are my interests",
+            "what do you know about me"
+        };
+
+        private bool IsMemoryRecallRequest(string input)
+        {
+            return _memoryRecallPatterns.Any(pattern => input.Contains(pattern));
+        }
+
+        /// <summary>
+        /// Detects if the input expresses a sentiment (non‑neutral) about a specific cybersecurity topic.
+        /// </summary>
+        /// <param name="input">Normalised user input.</param>
+        /// <param name="sentiment">Detected sentiment (positive, worried, frustrated, etc.).</param>
+        /// <param name="topic">The topic mentioned in the input, if any.</param>
+        /// <returns>True if a non‑neutral sentiment and a topic are both present; otherwise false.</returns>
+        private bool DetectSentimentWithTopic(string input, string sentiment, out string? topic)
+        {
+            topic = null;
+
+            // Only interested in non‑neutral sentiments
+            if (string.IsNullOrEmpty(sentiment) || sentiment == "neutral")
+                return false;
+
+            // Try to extract a topic from the input
+            topic = MapKeywordToTopic(input);
+            return topic != null;
+        }
+
+        // Helper: Detect topic with aliases/synonyms
+        private string? DetectTopicWithAliases(string input)
+        {
+            // Expand this dictionary for more flexible topic detection
+            var aliasMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "email scam", "phishing" },
+                { "scam email", "phishing" },
+                { "hackers stealing passwords", "passwords" },
+                { "safe browsing online", "browsing" },
+                { "browsing safety", "browsing" },
+                { "wifi security", "wifi" },
+                { "public wifi", "wifi" },
+                { "vpn", "wifi" },
+                { "password vault", "password manager" },
+                { "2 factor", "2fa" },
+                { "two factor", "2fa" },
+                { "authentication", "2fa" },
+                { "social manipulation", "social engineering" },
+                { "software update", "patch management" },
+                { "patch", "patch management" },
+                { "update", "patch management" },
+                { "privacy", "privacy" },
+                { "ransom", "ransomware" },
+                { "ransomware", "ransomware" },
+                { "password", "passwords" },
+                { "passwords", "passwords" },
+                { "browsing", "browsing" },
+                { "phishing", "phishing" }
+            };
+            foreach (var kvp in aliasMap)
+            {
+                if (input.Contains(kvp.Key))
+                    return kvp.Value;
+            }
+            return null;
+        }
         private string GetHelpResponse()
         {
-            return $"Hi {_userName}! I'm here to teach you about cybersecurity. You can:\n" +
-                   "• Ask about topics: phishing, passwords, 2FA, privacy, ransomware, etc.\n" +
-                   "• Type numbers 1-10 for specific topics\n" +
-                   "• Ask for tips on any security topic\n" +
-                   "• Say 'exit' to quit\n" +
-                   "What would you like to learn about?";
+            return
+            $"📚 Ready to learn about cybersecurity, {_userName}?\n\n" +
+
+            "I'm here to help you stay safe online by teaching you about common cyber threats, security best practices, and ways to protect your personal information.\n\n" +
+
+            "🔒 Cybersecurity Topics You Can Learn About:\n" +
+            "   • Type '1' for 'phishing' - Learn how scammers trick people through fake emails and messages\n" +
+            "   • Type '2' for 'passwords' - Learn how to create strong and secure passwords\n" +
+            "   • Type '3' for '2FA' - Learn how two-factor authentication protects your accounts\n" +
+            "   • Type '4' for 'privacy' - Learn how to keep your personal data private online\n" +
+            "   • Type '5' for 'browsing' - Learn how to browse the internet safely\n" +
+            "   • Type '6' for 'ransomware' - Learn how ransomware attacks work and how to avoid them\n" +
+            "   • Type '7' for 'social engineering' - Learn how attackers manipulate people into giving away information\n" +
+            "   • Type '8' for 'patch management' - Learn why updating software is important for security\n" +
+            "   • Type '9' for 'public WiFi' - Learn how to stay safe while using public networks\n" +
+            "   • Type '10' for 'password managers' - Learn how password managers improve security\n\n" +
+
+            "🎮 Cybersecurity Quiz Game (NEW!):\n" +
+            "   • Type 'start quiz' - Begin a 20-question quiz covering all topics\n" +
+            "   • Type 'quiz score' - See your current score while playing\n" +
+            "   • Type 'pause quiz' or 'stop quiz' - Pause the quiz (you can resume later)\n" +
+            "   • Type 'resume quiz' or 'continue quiz' - Continue where you left off\n" +
+            "   • Type 'restart quiz' - Start a completely new quiz (current progress lost)\n\n" +
+
+            "📋 Task Assistant (NEW!):\n" +
+            "   • Type 'add task review privacy settings' - Create a new cybersecurity task\n" +
+            "   • Type 'show tasks' - List all your tasks\n" +
+            "   • Type 'pending tasks' - Show only incomplete tasks\n" +
+            "   • Type 'complete task 1' - Mark a task as completed\n" +
+            "   • Type 'delete task 1' - Remove a task\n" +
+            "   • Type 'remind me tomorrow' - Set a reminder for the most recent task\n" +
+            "   • Type 'remind me in 3 days for task 2' - Attach reminder to a specific task\n\n" +
+
+            "� Activity Log (NEW!):\n" +
+            "   • Type 'show activity log' - View your recent activities (tips viewed, topics learned, tasks added, etc.)\n" +
+            "   • Type 'show more' - View the next page of activity history\n" +
+            "   • Your actions are automatically logged — tips, quizzes, tasks, interests, and more!\n\n" +
+
+            "�💡 Interactive Features:\n" +
+            "   • Ask for cybersecurity tips on any of the 10 topics I cover\n" +
+            "   • Ask follow-up questions like 'Tell me more' or 'Give me another tip'\n" +
+            "   • Share your interests so I can personalise your learning experience\n" +
+            "   • Talk naturally — you don't always need exact keywords\n\n" +
+
+            "💬 Conversational Commands:\n" +
+            "   • Ask things like 'How are you?' or 'What's your purpose?'\n" +
+            "   • Type 'help' anytime to see this menu again\n" +
+            "   • Type 'exit' or 'quit' whenever you'd like to leave\n\n" +
+
+            "🛡️ Your cybersecurity journey starts now.\n" +
+            "What would you like to learn about today?";
+
         }
 
         private string RouteToTopicResponse(string lowerInput, string sentiment)
         {
-            // Route to appropriate topic handler
-            switch (lowerInput)
-            {
-                case "1":
-                case "phishing":
-                case "phishing attacks":
-                    return GetTopicResponse("phishing");
-                case "2":
-                case "password":
-                case "passwords":
-                    return GetTopicResponse("passwords");
-                case "3":
-                case "2fa":
-                case "two-factor":
-                case "two factor":
-                case "authentication":
-                    return GetTopicResponse("2fa");
-                case "4":
-                case "privacy":
-                case "data privacy":
-                    return GetTopicResponse("privacy");
-                case "5":
-                case "browsing":
-                case "secure browsing":
-                    return GetTopicResponse("browsing");
-                case "6":
-                case "ransomware":
-                    return GetTopicResponse("ransomware");
-                case "7":
-                case "social engineering":
-                case "social engineer":
-                    return GetTopicResponse("social_engineering");
-                case "8":
-                case "patch":
-                case "patch management":
-                case "update":
-                case "updates":
-                    return GetTopicResponse("patch_management");
-                case "9":
-                case "wifi":
-                case "public wifi":
-                case "public wi-fi":
-                    return GetTopicResponse("wifi");
-                case "10":
-                case "password manager":
-                case "password managers":
-                    return GetTopicResponse("password_manager");
+            // sentiment is unused – consider removing from signature
+            _ = sentiment;
 
-                // General conversational queries
-                case "hello":
-                case "hi":
-                case "hey":
-                    return $"Hello {_userName}! I'm here to help you learn about cybersecurity. What topic interests you?";
-                case "how are you?":
-                case "how are you":
-                case "what's your purpose?":
-                case "what's your purpose":
-                    return $"I'm doing great! My purpose is to teach you about cybersecurity awareness and best practices. What would you like to know?";
-                default:
-                    return $"That's interesting! Try asking me about: phishing, passwords, 2FA, privacy, ransomware, or type 'help' for more options.";
+            // Try to map alias to topic name
+            if (_topicAliasMap.TryGetValue(lowerInput, out string topic))
+            {
+                return GetTopicResponse(topic);
             }
+
+            // Handle conversational replies
+            return GetConversationalReply(lowerInput);
         }
+
+        // --- Dictionaries (initialise once, e.g. in constructor or statically) ---
+
+        private static readonly Dictionary<string, string> _topicAliasMap = new(StringComparer.OrdinalIgnoreCase)
+{
+    // PHISHING
+    { "1", "phishing" },
+    { "phishing", "phishing" },
+    { "phishing attacks", "phishing" },
+
+    // PASSWORDS
+    { "2", "passwords" },
+    { "password", "passwords" },
+    { "passwords", "passwords" },
+
+    // 2FA
+    { "3", "2fa" },
+    { "2fa", "2fa" },
+    { "two-factor", "2fa" },
+    { "two factor", "2fa" },
+    { "authentication", "2fa" },
+
+    // PRIVACY
+    { "4", "privacy" },
+    { "privacy", "privacy" },
+    { "data privacy", "privacy" },
+
+    // BROWSING
+    { "5", "browsing" },
+    { "browsing", "browsing" },
+    { "secure browsing", "browsing" },
+
+    // RANSOMWARE
+    { "6", "ransomware" },
+    { "ransomware", "ransomware" },
+
+    // SOCIAL ENGINEERING
+    { "7", "social_engineering" },
+    { "social engineering", "social_engineering" },
+    { "social engineer", "social_engineering" },
+
+    // PATCH MANAGEMENT
+    { "8", "patch_management" },
+    { "patch", "patch_management" },
+    { "patch management", "patch_management" },
+    { "update", "patch_management" },
+    { "updates", "patch_management" },
+
+    // WIFI
+    { "9", "wifi" },
+    { "wifi", "wifi" },
+    { "public wifi", "wifi" },
+    { "public wi-fi", "wifi" },
+
+    // PASSWORD MANAGER
+    { "10", "password_manager" },
+    { "password manager", "password_manager" },
+    { "password managers", "password_manager" }
+};
+
+        private static readonly Dictionary<string, string> _topicResponses = new()
+        {
+            ["phishing"] = "PHISHING ATTACKS\n\n" +
+                "Phishing is a type of social engineering attack where attackers impersonate legitimate organizations to steal credentials or data.\n\n" +
+                "KEY RISKS:\n" +
+                "• Email spoofing - emails appear to come from trusted sources\n" +
+                "• Credential theft - tricking you into entering your password\n" +
+                "• Malware delivery - links containing malicious software\n\n" +
+                "PROTECTION TIPS:\n" +
+                "✓ Check sender email address carefully\n" +
+                "✓ Look for spelling errors or urgent language\n" +
+                "✓ Never click links from unknown senders\n" +
+                "✓ Verify requests by contacting the organization directly\n" +
+                "✓ Use email filtering and security tools\n" +
+                "✓ Enable multi-factor authentication",
+
+            ["passwords"] = "STRONG PASSWORDS\n\n" +
+                "Strong passwords are your first line of defense against unauthorized access.\n\n" +
+                "WHAT MAKES A PASSWORD STRONG:\n" +
+                "• At least 12-16 characters (longer is better)\n" +
+                "• Mix of uppercase and lowercase letters\n" +
+                "• Include numbers and special characters (!@#$%^&*)\n" +
+                "• Avoid dictionary words, names, or birthdates\n" +
+                "• Unique for each account\n\n" +
+                "BEST PRACTICES:\n" +
+                "✓ Use a password manager (1Password, KeePass, etc.)\n" +
+                "✓ Enable two-factor authentication\n" +
+                "✓ Change passwords if breached\n" +
+                "✓ Never share your password\n" +
+                "✓ Use passphrases for accounts you use frequently",
+
+            ["2fa"] = "TWO-FACTOR AUTHENTICATION (2FA)\n\n" +
+                "2FA requires two forms of verification to access your account, making it much harder for attackers to gain access.\n\n" +
+                "HOW IT WORKS:\n" +
+                "1. You know (password)\n" +
+                "2. You have (phone, authenticator app, security key)\n\n" +
+                "TYPES OF 2FA:\n" +
+                "• SMS/Text messages (least secure)\n" +
+                "• Authenticator apps (Google Authenticator, Microsoft Authenticator)\n" +
+                "• Hardware security keys (YubiKey, most secure)\n" +
+                "• Biometric (fingerprint, face recognition)\n\n" +
+                "BENEFITS:\n" +
+                "✓ Dramatically increases security\n" +
+                "✓ Protects against phishing\n" +
+                "✓ Prevents unauthorized access even if password is stolen",
+
+            ["privacy"] = "DATA PRIVACY\n\n" +
+                "Protecting your personal data is crucial in the digital age.\n\n" +
+                "TYPES OF DATA TO PROTECT:\n" +
+                "• Personal identifiers (name, SSN, DOB)\n" +
+                "• Financial information (bank accounts, credit cards)\n" +
+                "• Health records\n" +
+                "• Online activity and browsing history\n\n" +
+                "PRIVACY TIPS:\n" +
+                "✓ Review privacy settings on social media\n" +
+                "✓ Limit information you share online\n" +
+                "✓ Use privacy-focused browsers (Firefox, Brave)\n" +
+                "✓ Use VPNs on public Wi-Fi\n" +
+                "✓ Check data breaches at haveibeenpwned.com\n" +
+                "✓ Read privacy policies before sharing data",
+
+            ["browsing"] = "SECURE BROWSING\n\n" +
+                "Safe web browsing practices protect you from malware, phishing, and data theft.\n\n" +
+                "ESSENTIAL PRACTICES:\n" +
+                "• Look for HTTPS and padlock icon\n" +
+                "• Keep browser and extensions updated\n" +
+                "• Use reputable antivirus software\n" +
+                "• Be cautious with downloads\n\n" +
+                "AVOID:\n" +
+                "✗ Clicking suspicious links\n" +
+                "✗ Downloading from untrusted sites\n" +
+                "✗ Ignoring security warnings\n" +
+                "✗ Installing unknown browser extensions\n\n" +
+                "RECOMMENDED:\n" +
+                "✓ Use browser security extensions\n" +
+                "✓ Clear cookies and cache regularly\n" +
+                "✓ Disable JavaScript on untrusted sites\n" +
+                "✓ Use private/incognito browsing mode",
+
+            ["ransomware"] = "RANSOMWARE\n\n" +
+                "Ransomware encrypts your files and demands payment for decryption. Prevention is critical.\n\n" +
+                "COMMON DELIVERY METHODS:\n" +
+                "• Malicious email attachments\n" +
+                "• Compromised websites\n" +
+                "• Unpatched software vulnerabilities\n" +
+                "• Remote desktop access (RDP)\n\n" +
+                "PROTECTION STRATEGIES:\n" +
+                "✓ Keep backups offline and regularly updated\n" +
+                "✓ Update software and OS immediately\n" +
+                "✓ Use multi-factor authentication\n" +
+                "✓ Train staff on phishing awareness\n" +
+                "✓ Use reputable security software\n" +
+                "✓ Restrict file sharing permissions",
+
+            ["social_engineering"] = "SOCIAL ENGINEERING\n\n" +
+                "Social engineering exploits human psychology to manipulate people into divulging confidential information.\n\n" +
+                "COMMON TACTICS:\n" +
+                "• Pretexting - creating a fabricated scenario\n" +
+                "• Baiting - offering something enticing\n" +
+                "• Tailgating - following someone into secure areas\n" +
+                "• Phishing - fraudulent emails\n" +
+                "• Vishing - voice phishing over phone\n\n" +
+                "DEFENSE MEASURES:\n" +
+                "✓ Verify identities before sharing information\n" +
+                "✓ Be skeptical of unsolicited requests\n" +
+                "✓ Don't trust caller ID alone\n" +
+                "✓ Follow organizational security policies\n" +
+                "✓ Report suspicious activity\n" +
+                "✓ Stay educated on tactics",
+
+            ["patch_management"] = "SOFTWARE UPDATES & PATCH MANAGEMENT\n\n" +
+                "Updates fix security vulnerabilities that attackers exploit to compromise systems.\n\n" +
+                "WHY UPDATES MATTER:\n" +
+                "• Fix security vulnerabilities\n" +
+                "• Prevent zero-day exploits\n" +
+                "• Improve stability and performance\n" +
+                "• Protect against known malware\n\n" +
+                "BEST PRACTICES:\n" +
+                "✓ Enable automatic updates\n" +
+                "✓ Update OS regularly\n" +
+                "✓ Update browsers and plugins\n" +
+                "✓ Remove unsupported software\n" +
+                "✓ Test updates on non-critical systems first\n" +
+                "✓ Schedule updates during low-usage times",
+
+            ["wifi"] = "PUBLIC WI-FI SAFETY\n\n" +
+                "Public Wi-Fi networks pose significant security risks due to lack of encryption and authentication.\n\n" +
+                "RISKS:\n" +
+                "• Man-in-the-middle attacks\n" +
+                "• Packet sniffing - intercepting data\n" +
+                "• Rogue hotspots - fake Wi-Fi networks\n" +
+                "• Malware distribution\n\n" +
+                "PROTECTION METHODS:\n" +
+                "✓ Use a VPN (Virtual Private Network)\n" +
+                "✓ Avoid sensitive transactions on public Wi-Fi\n" +
+                "✓ Disable file sharing\n" +
+                "✓ Turn off auto-connect features\n" +
+                "✓ Use HTTPS websites only\n" +
+                "✓ Use your phone's hotspot instead",
+
+            ["password_manager"] = "PASSWORD MANAGERS\n\n" +
+                "Password managers securely store and generate strong passwords for all your accounts.\n\n" +
+                "HOW THEY HELP:\n" +
+                "• Generate strong, unique passwords\n" +
+                "• Eliminate password reuse\n" +
+                "• Auto-fill login information securely\n" +
+                "• Sync across devices\n\n" +
+                "POPULAR OPTIONS:\n" +
+                "• Bitwarden (free, open-source)\n" +
+                "• 1Password (premium, user-friendly)\n" +
+                "• KeePass (local, self-hosted)\n" +
+                "• Apple/Google built-in managers\n\n" +
+                "BEST PRACTICES:\n" +
+                "✓ Use a strong master password\n" +
+                "✓ Enable 2FA on your password manager\n" +
+                "✓ Never store master password digitally\n" +
+                "✓ Regularly backup encrypted vault"
+        };
 
         private string GetTopicResponse(string topic)
         {
+            // Record the interaction
             _userMemory.AddDiscussedTopic(topic);
             _currentTopic = topic;
 
+            // Return the pre-defined response or a fallback
+            return _topicResponses.GetValueOrDefault(topic, $"I can help you with {topic}. Would you like more details?");
+        }
+
+        private string? GetConversationalReply(string lowerInput)
+        {
+            // 1. GREETINGS (including time-specific)
+            if (lowerInput.Contains("hello") || lowerInput.Contains("hi") || lowerInput.Contains("hey") ||
+                lowerInput.Contains("good morning") || lowerInput.Contains("morning") ||
+                lowerInput.Contains("good afternoon") || lowerInput.Contains("afternoon") ||
+                lowerInput.Contains("good evening") || lowerInput.Contains("evening") ||
+                lowerInput.Contains("greetings") || lowerInput.Contains("howdy"))
+            {
+                // Time-appropriate greeting (optional)
+                string timeGreeting = GetTimeBasedGreeting();
+                return $"{timeGreeting} {_userName}! 👋 I'm your cybersecurity assistant. What would you like to learn about today?";
+            }
+
+            // 2. HOW ARE YOU / FEELING
+            if (lowerInput.Contains("how are you") || lowerInput.Contains("how do you do") ||
+                lowerInput.Contains("how's it going") || lowerInput.Contains("how are things") ||
+                lowerInput.Contains("you okay") || lowerInput.Contains("feeling"))
+            {
+                return $"I'm doing fantastic, {_userName}! 😊 Always ready to help you stay safe online. How can I assist you with cybersecurity today?";
+            }
+
+            // 3. THANKS / GRATITUDE
+            if (lowerInput.Contains("thank") || lowerInput.Contains("thanks") || lowerInput.Contains("appreciate") ||
+                lowerInput.Contains("grateful") || lowerInput.Contains("thx") || lowerInput == "ty")
+            {
+                return $"You're very welcome, {_userName}! 🙏 I'm glad to help. Feel free to ask me about any cybersecurity topic – phishing, passwords, 2FA, privacy, and more!";
+            }
+
+
+            // 4. PURPOSE / CAPABILITIES ("what can you do", "what is your purpose", "what do you do")
+            if (lowerInput.Contains("what is your purpose") || lowerInput.Contains("what's your purpose") ||
+                lowerInput.Contains("what can you do") || lowerInput.Contains("what do you do") ||
+                lowerInput.Contains("how can you help") || lowerInput.Contains("your function") ||
+                lowerInput.Contains("capabilities") || lowerInput.Contains("features"))
+            {
+                return $"My purpose is to teach you about cybersecurity awareness and best practices! 🛡️ I can explain topics like phishing, passwords, 2FA, privacy, ransomware, secure browsing, public Wi-Fi safety, and more. Just ask me about any of these, or say 'help' for the menu.";
+            }
+
+            // 5. IDENTITY / CREATOR ("who are you", "who made you", "what are you", "your name")
+            if (lowerInput.Contains("who are you") || lowerInput.Contains("what are you") ||
+                lowerInput.Contains("who made you") || lowerInput.Contains("who created you") ||
+                lowerInput.Contains("your creator") || lowerInput.Contains("what is your name") ||
+                lowerInput.Contains("what's your name") || lowerInput.Contains("called"))
+            {
+                return $"I'm your friendly cybersecurity awareness bot! 🤖 My name is SecuriBot (you can call me Securi). I was built by security educators to help people like you stay safe online. What can I teach you today?";
+            }
+
+            // 6. COMPLIMENTS / POSITIVE FEEDBACK
+            if (lowerInput.Contains("you are awesome") || lowerInput.Contains("you're awesome") ||
+                lowerInput.Contains("you are great") || lowerInput.Contains("you're great") ||
+                lowerInput.Contains("good bot") || lowerInput.Contains("you help") ||
+                lowerInput.Contains("i like you") || lowerInput.Contains("you are helpful"))
+            {
+                return $"Aww, thank you, {_userName}! 🥰 That means a lot. I'm here 24/7 to help you learn cybersecurity – just ask me anything!";
+            }
+
+            // 7. APOLOGIES
+            if (lowerInput.Contains("sorry") || lowerInput.Contains("apologise") || lowerInput.Contains("apologize") ||
+                lowerInput.Contains("my bad") || lowerInput.Contains("i'm sorry"))
+            {
+                return $"No worries at all, {_userName}! 😊 Everyone makes mistakes. How can I help you with cybersecurity today?";
+            }
+
+            // 8. CONFUSION / REPETITION ("what", "huh", "repeat", "again")
+            if (lowerInput == "what" || lowerInput == "huh" || lowerInput == "repeat" ||
+                lowerInput.Contains("say that again") || lowerInput.Contains("come again") ||
+                lowerInput.Contains("i don't understand") || lowerInput.Contains("i didnt get that") ||
+                lowerInput.Contains("confused"))
+            {
+                return $"I'm sorry if I wasn't clear, {_userName}. 😅 Feel free to ask me about specific cybersecurity topics like 'phishing', 'passwords', '2FA', or 'privacy'. You can also type 'help' for a full list of what I can do.";
+            }
+
+            // 9. JOKES / FUN (optional)
+            if (lowerInput.Contains("tell me a joke") || lowerInput.Contains("make me laugh") ||
+                lowerInput.Contains("funny") || lowerInput.Contains("joke") && !lowerInput.Contains("no joke"))
+            {
+                return $"Why do hackers wear leather jackets? Because they have to deal with a lot of firewalls! 😂";
+            }
+
+
+            // 10. DISAGREEMENT / NEGATION (gentle redirection)
+            if (lowerInput == "no" || lowerInput == "nope" || lowerInput == "nah" || lowerInput == "not really" ||
+                lowerInput.Contains("that's wrong") || lowerInput.Contains("incorrect"))
+            {
+                return $"I understand, {_userName}. 🙏 Let me know what you're looking for, and I'll do my best to help. Cybersecurity topics I cover: phishing, passwords, 2FA, privacy, ransomware, and more.";
+            }
+
+            // No conversational match
+            return null;
+        }
+
+        // Optional helper for time-based greeting
+        private string GetTimeBasedGreeting()
+        {
+            var hour = DateTime.Now.Hour;
+            if (hour < 12) return "Good morning";
+            if (hour < 18) return "Good afternoon";
+            return "Good evening";
+        }
+
+        private void ResetActivityLogPagination()
+        {
+            _activityLogMode = false;
+            _activityLogPage = 0;
+        }
+
+        private bool IsShowActivityLogCommand(string lowerInput)
+        {
+            return lowerInput.Contains("show activity log")
+                   || lowerInput.Contains("activity log")
+                   || lowerInput.Contains("show activity")
+                   || lowerInput.Contains("view activity");
+        }
+
+        private bool IsShowMoreActivityLogCommand(string lowerInput)
+        {
+            return lowerInput.Contains("show more")
+                   || lowerInput.Contains("more")
+                   || lowerInput.Contains("next page")
+                   || lowerInput.Contains("next");
+        }
+
+        private string GetActivityLogPageResponse(int page)
+        {
+            if (!_activityLogService.HasEntries)
+                return "Your activity log is currently empty. Start using the bot and I will record your actions here.";
+
+            var entries = _activityLogService.GetEntries(page);
+            if (entries.Count == 0)
+            {
+                ResetActivityLogPagination();
+                return "There are no more activity log entries to show.";
+            }
+
+            var responseBuilder = new System.Text.StringBuilder();
+            responseBuilder.AppendLine($"Activity Log — Page {page} of {_activityLogService.GetTotalPages()}");
+            responseBuilder.AppendLine("-----------------------------------");
+
+            foreach (var entry in entries)
+            {
+                responseBuilder.AppendLine($"[{entry.Timestamp:yyyy-MM-dd HH:mm}] {entry.ActionType}: {entry.Description}");
+            }
+
+            if (_activityLogService.HasMorePages(page))
+            {
+                responseBuilder.AppendLine();
+                responseBuilder.AppendLine("Type 'show more' to see the next page of activity.");
+            }
+
+            return responseBuilder.ToString();
+        }
+
+        /// <summary>
+        /// GenerateTipResponseWithTracking - Enhanced tip generation with full tracking and progression.
+        /// 
+        /// Features:
+        /// - Uses TipTracker to prevent duplicate tips
+        /// - Tracks tip count and progression
+        /// - Implements 3-tip → education transition
+        /// - Handles tip exhaustion gracefully
+        /// - Provides sentiment-aware responses
+        /// - Updates conversation state properly
+        /// </summary>
+        private string GenerateTipResponseWithTracking(string userInput, string sentiment)
+        {
+            // Guard clauses
+            if (_tipRepository == null) return "Tip service is temporarily unavailable.";
+            if (_tipTracker == null) return "Tip tracking is not initialised.";
+
+            // Determine active topic
+            string requestedTopic = MapKeywordToTopic(userInput);
+            string? activeTopic = (IsFlexibleFollowUpRequest(userInput) || IsContinuationRequest(userInput)) ? _currentTopic : requestedTopic;
+            if (activeTopic == null && !string.IsNullOrEmpty(_currentTopic))
+                activeTopic = _currentTopic;
+
+            if (activeTopic == null)
+                return $"I'd like to help with a tip, {_userName}, but I need to know which topic. Try asking about: phishing, passwords, 2fa, privacy, browsing, ransomware, social engineering, patch management, wifi, or password manager.";
+
+            if (!_tipRepository.HasTopic(activeTopic))
+                return $"I don't have tips for '{activeTopic}' yet, {_userName}. Try another cybersecurity topic from the menu.";
+
+            var allTips = _tipRepository.GetAllTips(activeTopic);
+            int totalTips = allTips?.Count ?? 0;
+
+            _currentTopic = activeTopic;
+            _conversationManager.UpdateTopic(activeTopic);
+
+            if (_tipTracker.HasAllTipsBeenShown(activeTopic, totalTips))
+                return $"You've already learned all {totalTips} tips about {activeTopic}! 🎓\n\nWould you like to:\n  • Explore a different topic (e.g., 'tell me about privacy')\n  • Get a comprehensive breakdown of {activeTopic}";
+
+            string tip = _tipTracker.GetNextUnusedTip(activeTopic, allTips);
+            if (string.IsNullOrEmpty(tip))
+                return $"Sorry, I couldn't retrieve a tip for {activeTopic} right now, {_userName}.";
+
+            _activityLogService.AddEntry("Tip", $"Delivered tip for {activeTopic}.");
+
+            string response = "";
+            string sentimentPrefix = GetSentimentAwarePrefix(sentiment, activeTopic);
+            if (!string.IsNullOrEmpty(sentimentPrefix))
+                response += sentimentPrefix + "\n\n";
+
+            response += $"💡 TIP: {tip}\n";
+
+            _tipCount = _tipTracker.GetTipCount(activeTopic);
+            int remainingTips = _tipTracker.GetRemainingTipCount(activeTopic, totalTips);
+            _conversationManager.SetIntentType("TipRequest");
+            _conversationManager.SetResponseCategory("Tip");
+            _conversationManager.IncrementTipsShown();
+
+            response += "\n";
+            if (remainingTips > 0)
+            {
+                response += $"You have {remainingTips} more tip(s) about {activeTopic}. Ask for another tip when you're ready. 💬";
+            }
+            else
+            {
+                response += $"\nYou've now received all available tips for {activeTopic}! 🎯\nTry exploring another cybersecurity topic or ask for the full {activeTopic} overview.";
+            }
+
+            return response;
+        }
+
+        /// <summary>
+        /// GenerateDeepDiveResponse - Provides deeper educational content for a topic.
+        /// Called when user requests more details about current topic.
+        /// </summary>
+        private string GenerateDeepDiveResponse(string topic, string sentiment)
+        {
+            _userMemory.AddDiscussedTopic(topic);
+            _conversationManager.SetIntentType("DeepDive");
+            _conversationManager.SetResponseCategory("Education");
+
+            string response = "";
+            string intro = GetEducationIntroduction(sentiment, topic);
+            if (!string.IsNullOrEmpty(intro))
+                response += intro + "\n\n";
+
+            string memoryPersonalization = GetMemoryPersonalization(topic);
+            if (!string.IsNullOrEmpty(memoryPersonalization))
+                response += memoryPersonalization + "\n\n";
+
+            response += GetComprehensiveEducation(topic);
+            return response;
+        }
+
+        /// <summary>
+        /// GetComprehensiveEducation - Returns full educational content for a topic.
+        /// </summary>
+        private string GetComprehensiveEducation(string topic)
+        {
             return topic switch
             {
-                "phishing" => "PHISHING ATTACKS\n\n" +
+                "phishing" => "PHISHING ATTACKS - COMPREHENSIVE GUIDE\n\n" +
                     "Phishing is a type of social engineering attack where attackers impersonate legitimate organizations to steal credentials or data.\n\n" +
-                    "KEY RISKS:\n" +
+                    "🔴 KEY RISKS:\n" +
                     "• Email spoofing - emails appear to come from trusted sources\n" +
                     "• Credential theft - tricking you into entering your password\n" +
-                    "• Malware delivery - links containing malicious software\n\n" +
-                    "PROTECTION TIPS:\n" +
-                    "✓ Check sender email address carefully\n" +
+                    "• Malware delivery - links containing malicious software\n" +
+                    "• Financial fraud - impersonating banks or payment systems\n" +
+                    "• Identity theft - collecting personal information\n\n" +
+                    "🛡️ PROTECTION TIPS:\n" +
+                    "✓ Check sender email address carefully (look for slight misspellings)\n" +
                     "✓ Look for spelling errors or urgent language\n" +
-                    "✓ Never click links from unknown senders\n" +
+                    "✓ Never click links from unknown senders - hover over them first\n" +
                     "✓ Verify requests by contacting the organization directly\n" +
                     "✓ Use email filtering and security tools\n" +
-                    "✓ Enable multi-factor authentication",
+                    "✓ Enable multi-factor authentication\n" +
+                    "✓ Keep browser and OS updated\n" +
+                    "✓ Report phishing attempts to the organization",
 
-                "passwords" => "STRONG PASSWORDS\n\n" +
+                "passwords" => "STRONG PASSWORDS - COMPREHENSIVE GUIDE\n\n" +
                     "Strong passwords are your first line of defense against unauthorized access.\n\n" +
-                    "WHAT MAKES A PASSWORD STRONG:\n" +
+                    "🎯 WHAT MAKES A PASSWORD STRONG:\n" +
                     "• At least 12-16 characters (longer is better)\n" +
                     "• Mix of uppercase and lowercase letters\n" +
                     "• Include numbers and special characters (!@#$%^&*)\n" +
                     "• Avoid dictionary words, names, or birthdates\n" +
-                    "• Unique for each account\n\n" +
-                    "BEST PRACTICES:\n" +
-                    "✓ Use a password manager (1Password, KeePass, etc.)\n" +
-                    "✓ Enable two-factor authentication\n" +
-                    "✓ Change passwords if breached\n" +
-                    "✓ Never share your password\n" +
-                    "✓ Use passphrases for accounts you use frequently",
+                    "• Unique for each account\n" +
+                    "• No personal information (pets, family, hobbies)\n\n" +
+                    "📋 BEST PRACTICES:\n" +
+                    "✓ Use a password manager (1Password, KeePass, Bitwarden)\n" +
+                    "✓ Enable two-factor authentication on all accounts\n" +
+                    "✓ Change passwords if a service is breached\n" +
+                    "✓ Never share your password with anyone\n" +
+                    "✓ Use passphrases for accounts you use frequently\n" +
+                    "✓ Don't reuse passwords across sites\n" +
+                    "✓ Consider using randomly generated passwords",
 
-                "2fa" => "TWO-FACTOR AUTHENTICATION (2FA)\n\n" +
-                    "2FA requires two forms of verification to access your account, making it much harder for attackers to gain access.\n\n" +
-                    "HOW IT WORKS:\n" +
-                    "1. You know (password)\n" +
-                    "2. You have (phone, authenticator app, security key)\n\n" +
-                    "TYPES OF 2FA:\n" +
-                    "• SMS/Text messages (least secure)\n" +
-                    "• Authenticator apps (Google Authenticator, Microsoft Authenticator)\n" +
-                    "• Hardware security keys (YubiKey, most secure)\n" +
+                "2fa" => "TWO-FACTOR AUTHENTICATION - COMPREHENSIVE GUIDE\n\n" +
+                    "2FA requires two forms of verification to access your account, making it exponentially harder for attackers to gain access.\n\n" +
+                    "⚙️ HOW IT WORKS:\n" +
+                    "1. Something you know (password)\n" +
+                    "2. Something you have (phone, authenticator app, security key)\n\n" +
+                    "📱 TYPES OF 2FA (FROM LEAST TO MOST SECURE):\n" +
+                    "• SMS/Text messages (vulnerable to SIM swapping)\n" +
+                    "• Authenticator apps (Google Authenticator, Microsoft Authenticator, Authy)\n" +
+                    "• Hardware security keys (YubiKey, Titan - most secure)\n" +
                     "• Biometric (fingerprint, face recognition)\n\n" +
-                    "BENEFITS:\n" +
-                    "✓ Dramatically increases security\n" +
-                    "✓ Protects against phishing\n" +
-                    "✓ Prevents unauthorized access even if password is stolen",
+                    "✅ BENEFITS:\n" +
+                    "✓ Dramatically increases account security\n" +
+                    "✓ Protection even if password is stolen\n" +
+                    "✓ Prevents unauthorized access\n" +
+                    "✓ Most major services now support it",
 
-                "privacy" => "DATA PRIVACY\n\n" +
-                    "Protecting your personal data is crucial in the digital age.\n\n" +
-                    "TYPES OF DATA TO PROTECT:\n" +
-                    "• Personal identifiers (name, SSN, DOB)\n" +
+                "privacy" => "DATA PRIVACY - COMPREHENSIVE GUIDE\n\n" +
+                    "Protecting your personal data is essential in today's digital world.\n\n" +
+                    "🔐 WHAT TO PROTECT:\n" +
+                    "• Personal identification (name, SSN, birthdate)\n" +
                     "• Financial information (bank accounts, credit cards)\n" +
-                    "• Health records\n" +
-                    "• Online activity and browsing history\n\n" +
-                    "PRIVACY TIPS:\n" +
-                    "✓ Review privacy settings on social media\n" +
-                    "✓ Limit information you share online\n" +
-                    "✓ Use privacy-focused browsers (Firefox, Brave)\n" +
-                    "✓ Use VPNs on public Wi-Fi\n" +
-                    "✓ Check data breaches at haveibeenpwned.com\n" +
-                    "✓ Read privacy policies before sharing data",
+                    "• Health information (medical records, conditions)\n" +
+                    "• Location data (GPS, home address)\n" +
+                    "• Browsing history and online activity\n\n" +
+                    "🛡️ PRIVACY BEST PRACTICES:\n" +
+                    "✓ Use VPN on public Wi-Fi networks\n" +
+                    "✓ Check privacy settings on social media\n" +
+                    "✓ Be cautious what information you share online\n" +
+                    "✓ Use privacy-focused search engines\n" +
+                    "✓ Disable location tracking when not needed\n" +
+                    "✓ Read privacy policies before using services\n" +
+                    "✓ Opt-out of data collection where possible",
 
-                "browsing" => "SECURE BROWSING\n\n" +
-                    "Safe web browsing practices protect you from malware, phishing, and data theft.\n\n" +
-                    "ESSENTIAL PRACTICES:\n" +
-                    "• Look for HTTPS and padlock icon\n" +
-                    "• Keep browser and extensions updated\n" +
-                    "• Use reputable antivirus software\n" +
-                    "• Be cautious with downloads\n\n" +
-                    "AVOID:\n" +
-                    "✗ Clicking suspicious links\n" +
-                    "✗ Downloading from untrusted sites\n" +
-                    "✗ Ignoring security warnings\n" +
-                    "✗ Installing unknown browser extensions\n\n" +
-                    "RECOMMENDED:\n" +
-                    "✓ Use browser security extensions\n" +
+                "browsing" => "SECURE BROWSING - COMPREHENSIVE GUIDE\n\n" +
+                    "Safe internet browsing habits protect you from malware and phishing attacks.\n\n" +
+                    "🌐 BROWSING SAFETY:\n" +
+                    "• Look for HTTPS (not HTTP) in website URLs\n" +
+                    "• Verify SSL/TLS certificates (lock icon)\n" +
+                    "• Avoid clicking suspicious links\n" +
+                    "• Be cautious with browser extensions\n" +
+                    "• Update browser regularly\n\n" +
+                    "🛡️ PROTECTION STRATEGIES:\n" +
+                    "✓ Use a modern, updated browser (Chrome, Firefox, Safari, Edge)\n" +
+                    "✓ Enable browser security features\n" +
+                    "✓ Use ad blockers and anti-tracking tools\n" +
                     "✓ Clear cookies and cache regularly\n" +
-                    "✓ Disable JavaScript on untrusted sites\n" +
-                    "✓ Use private/incognito browsing mode",
+                    "✓ Disable unnecessary plugins\n" +
+                    "✓ Use private/incognito browsing mode\n" +
+                    "✓ Be suspicious of pop-ups",
 
-                "ransomware" => "RANSOMWARE\n\n" +
-                    "Ransomware encrypts your files and demands payment for decryption. Prevention is critical.\n\n" +
-                    "COMMON DELIVERY METHODS:\n" +
-                    "• Malicious email attachments\n" +
-                    "• Compromised websites\n" +
-                    "• Unpatched software vulnerabilities\n" +
-                    "• Remote desktop access (RDP)\n\n" +
-                    "PROTECTION STRATEGIES:\n" +
-                    "✓ Keep backups offline and regularly updated\n" +
-                    "✓ Update software and OS immediately\n" +
-                    "✓ Use multi-factor authentication\n" +
-                    "✓ Train staff on phishing awareness\n" +
-                    "✓ Use reputable security software\n" +
-                    "✓ Restrict file sharing permissions",
+                "ransomware" => "RANSOMWARE - COMPREHENSIVE GUIDE\n\n" +
+                    "Ransomware encrypts your files and demands payment for their return.\n\n" +
+                    "⚠️ HOW RANSOMWARE WORKS:\n" +
+                    "• Infiltrates system through malicious email or downloads\n" +
+                    "• Encrypts files making them inaccessible\n" +
+                    "• Demands payment (ransom) for decryption key\n" +
+                    "• Can spread to network drives and backup systems\n" +
+                    "• Criminals often steal data before encrypting\n\n" +
+                    "🛡️ PREVENTION:\n" +
+                    "✓ Keep all software updated with latest patches\n" +
+                    "✓ Maintain offline backups of important data\n" +
+                    "✓ Use comprehensive antivirus/antimalware software\n" +
+                    "✓ Enable automatic backups\n" +
+                    "✓ Use email filters to block suspicious attachments\n" +
+                    "✓ Train employees on phishing\n" +
+                    "✓ Never pay ransoms (funds crime)",
 
-                "social_engineering" => "SOCIAL ENGINEERING\n\n" +
-                    "Social engineering exploits human psychology to manipulate people into divulging confidential information.\n\n" +
-                    "COMMON TACTICS:\n" +
-                    "• Pretexting - creating a fabricated scenario\n" +
-                    "• Baiting - offering something enticing\n" +
-                    "• Tailgating - following someone into secure areas\n" +
-                    "• Phishing - fraudulent emails\n" +
-                    "• Vishing - voice phishing over phone\n\n" +
-                    "DEFENSE MEASURES:\n" +
-                    "✓ Verify identities before sharing information\n" +
+                "social engineering" => "SOCIAL ENGINEERING - COMPREHENSIVE GUIDE\n\n" +
+                    "Social engineering manipulates people into divulging confidential information.\n\n" +
+                    "🎭 COMMON TECHNIQUES:\n" +
+                    "• Pretexting (creating false scenario)\n" +
+                    "• Baiting (offering something enticing)\n" +
+                    "• Quid pro quo (offering something in exchange)\n" +
+                    "• Tailgating (following someone through secure door)\n" +
+                    "• Phishing (covered separately)\n" +
+                    "• Vishing (phishing via phone)\n\n" +
+                    "🛡️ PROTECTION:\n" +
                     "✓ Be skeptical of unsolicited requests\n" +
-                    "✓ Don't trust caller ID alone\n" +
-                    "✓ Follow organizational security policies\n" +
-                    "✓ Report suspicious activity\n" +
-                    "✓ Stay educated on tactics",
+                    "✓ Verify identities before sharing information\n" +
+                    "✓ Never share passwords or sensitive data\n" +
+                    "✓ Use security awareness training\n" +
+                    "✓ Report suspicious behavior\n" +
+                    "✓ Follow organizational security policies",
 
-                "patch_management" => "SOFTWARE UPDATES & PATCH MANAGEMENT\n\n" +
-                    "Updates fix security vulnerabilities that attackers exploit to compromise systems.\n\n" +
-                    "WHY UPDATES MATTER:\n" +
-                    "• Fix security vulnerabilities\n" +
-                    "• Prevent zero-day exploits\n" +
-                    "• Improve stability and performance\n" +
-                    "• Protect against known malware\n\n" +
-                    "BEST PRACTICES:\n" +
-                    "✓ Enable automatic updates\n" +
-                    "✓ Update OS regularly\n" +
-                    "✓ Update browsers and plugins\n" +
-                    "✓ Remove unsupported software\n" +
-                    "✓ Test updates on non-critical systems first\n" +
-                    "✓ Schedule updates during low-usage times",
+                "patch management" => "PATCH MANAGEMENT - COMPREHENSIVE GUIDE\n\n" +
+                    "Software updates patch security vulnerabilities and fix bugs.\n\n" +
+                    "🔧 WHY PATCHES MATTER:\n" +
+                    "• Fix security vulnerabilities before exploited\n" +
+                    "• Address known exploits used by attackers\n" +
+                    "• Improve system stability\n" +
+                    "• Add new security features\n\n" +
+                    "✅ PATCH MANAGEMENT BEST PRACTICES:\n" +
+                    "✓ Enable automatic updates on all devices\n" +
+                    "✓ Update operating system regularly\n" +
+                    "✓ Update all software and applications\n" +
+                    "✓ Update browser plugins (Java, Flash)\n" +
+                    "✓ Don't delay critical security patches\n" +
+                    "✓ Test patches in controlled environment first\n" +
+                    "✓ Keep firmware updated on routers/devices",
 
-                "wifi" => "PUBLIC WI-FI SAFETY\n\n" +
-                    "Public Wi-Fi networks pose significant security risks due to lack of encryption and authentication.\n\n" +
-                    "RISKS:\n" +
-                    "• Man-in-the-middle attacks\n" +
-                    "• Packet sniffing - intercepting data\n" +
-                    "• Rogue hotspots - fake Wi-Fi networks\n" +
-                    "• Malware distribution\n\n" +
-                    "PROTECTION METHODS:\n" +
+                "wifi" => "PUBLIC WI-FI SAFETY - COMPREHENSIVE GUIDE\n\n" +
+                    "Public Wi-Fi networks are convenient but pose significant security risks.\n\n" +
+                    "⚠️ PUBLIC WI-FI RISKS:\n" +
+                    "• Unencrypted networks allow packet sniffing\n" +
+                    "• Attackers can create fake hotspots\n" +
+                    "• No authentication between you and network\n" +
+                    "• Data can be intercepted easily\n\n" +
+                    "🛡️ PROTECTION STRATEGIES:\n" +
                     "✓ Use a VPN (Virtual Private Network)\n" +
                     "✓ Avoid sensitive transactions on public Wi-Fi\n" +
-                    "✓ Disable file sharing\n" +
-                    "✓ Turn off auto-connect features\n" +
                     "✓ Use HTTPS websites only\n" +
-                    "✓ Use your phone's hotspot instead",
+                    "✓ Disable auto-connect features\n" +
+                    "✓ Use mobile hotspot instead when possible\n" +
+                    "✓ Enable firewall on your device\n" +
+                    "✓ Turn off file sharing on your device",
 
-                "password_manager" => "PASSWORD MANAGERS\n\n" +
-                    "Password managers securely store and generate strong passwords for all your accounts.\n\n" +
-                    "HOW THEY HELP:\n" +
-                    "• Generate strong, unique passwords\n" +
-                    "• Eliminate password reuse\n" +
-                    "• Auto-fill login information securely\n" +
-                    "• Sync across devices\n\n" +
-                    "POPULAR OPTIONS:\n" +
-                    "• Bitwarden (free, open-source)\n" +
-                    "• 1Password (premium, user-friendly)\n" +
-                    "• KeePass (local, self-hosted)\n" +
-                    "• Apple/Google built-in managers\n\n" +
-                    "BEST PRACTICES:\n" +
-                    "✓ Use a strong master password\n" +
-                    "✓ Enable 2FA on your password manager\n" +
-                    "✓ Never store master password digitally\n" +
-                    "✓ Regularly backup encrypted vault",
+                "password manager" => "PASSWORD MANAGERS - COMPREHENSIVE GUIDE\n\n" +
+                    "Password managers securely store and organize your passwords.\n\n" +
+                    "🔐 HOW PASSWORD MANAGERS WORK:\n" +
+                    "• Stores encrypted passwords in secure vault\n" +
+                    "• Generates strong, unique passwords\n" +
+                    "• Auto-fills passwords on websites\n" +
+                    "• Syncs across devices securely\n\n" +
+                    "✅ POPULAR OPTIONS:\n" +
+                    "• 1Password - User-friendly, feature-rich\n" +
+                    "• LastPass - Cloud-based, widely used\n" +
+                    "• Bitwarden - Open-source, affordable\n" +
+                    "• KeePass - Local storage, high control\n\n" +
+                    "💡 BENEFITS:\n" +
+                    "✓ Use unique strong passwords everywhere\n" +
+                    "✓ Never forget passwords\n" +
+                    "✓ Reduces credential reuse\n" +
+                    "✓ Simplifies password management",
 
-                _ => $"I can help you with {topic}. Would you like more details?"
+                _ => $"I don't have comprehensive coverage for {topic} at the moment, but I can help with other cybersecurity topics!"
             };
         }
 
